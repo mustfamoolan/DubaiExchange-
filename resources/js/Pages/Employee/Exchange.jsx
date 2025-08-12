@@ -3,23 +3,26 @@ import EmployeeLayout from '../../Layouts/EmployeeLayout';
 import { router } from '@inertiajs/react';
 import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
 import ThermalReceipt from '../../Components/ThermalReceipt';
+import { useReceiveExchangeReceipt } from '../../Hooks/useReceiveExchangeReceipt';
+import ReceiveExchangeThermalReceipt from '../../Components/ReceiveExchangeThermalReceipt';
 
 export default function Exchange({
     user,
     currentBalance = 0,
     openingBalance = 0,
     transactions = [],
-    quickReport = { exchanged_today: 0, operations: 0, total_exchanged: 0 }
+    quickReport = { exchanged_today: 0, operations: 0, total_exchanged: 0, total_received: 0 }
 }) {
     const [balance, setBalance] = useState(currentBalance);
     const [showDetailedReport, setShowDetailedReport] = useState(false);
     const [todayReport, setTodayReport] = useState({
         exchanged_today: quickReport.exchanged_today,
         operations: quickReport.operations,
-        total_exchanged: quickReport.total_exchanged
+        total_exchanged: quickReport.total_exchanged,
+        total_received: quickReport.total_received
     });
 
-    // استخدام hook الفواتير الحرارية
+    // استخدام hook الفواتير الحرارية العامة
     const {
         showReceipt,
         receiptData,
@@ -30,12 +33,25 @@ export default function Exchange({
         createReceiptAndSave
     } = useThermalReceipt();
 
+    // استخدام hook المخصص لسندات القبض والصرف
+    const {
+        showReceipt: showExchangeReceipt,
+        receiptData: exchangeReceiptData,
+        isCreatingReceipt: isCreatingExchangeReceipt,
+        createReceiveExchangeReceipt,
+        createReceiptAndSave: createExchangeReceiptAndSave,
+        printReceipt: printExchangeReceipt,
+        closeReceipt: closeExchangeReceipt
+    } = useReceiveExchangeReceipt();
+
     const [formData, setFormData] = useState({
         invoiceNumber: '',
         currentTime: new Date().toLocaleString('ar-EG'),
         amount: '',
         description: '',
-        employeeName: user?.name || 'الموظف الحالي'
+        employeeName: user?.name || 'الموظف الحالي',
+        paidTo: '',
+        notes: ''
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -121,6 +137,72 @@ export default function Exchange({
         }
     };
 
+    // إرسال المعاملة (بدون رسائل تأكيد للاستخدام مع الطباعة)
+    const handleSubmitSilent = async () => {
+        if (!formData.amount || !formData.description) {
+            throw new Error('يرجى ملء جميع الحقول المطلوبة');
+        }
+
+        if (parseFloat(formData.amount) <= 0) {
+            throw new Error('يرجى إدخال مبلغ صحيح');
+        }
+
+        const response = await fetch('/employee/exchange', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            },
+            body: JSON.stringify({
+                invoiceNumber: formData.invoiceNumber,
+                amount: formData.amount,
+                description: formData.description,
+                paidTo: formData.paidTo,
+                notes: formData.notes
+            })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+
+            // تحديث الرصيد
+            setBalance(result.new_balance);
+
+            // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
+            if (result.updated_report) {
+                setTodayReport({
+                    exchanged_today: result.updated_report.exchanged_today,
+                    operations: result.updated_report.operations,
+                    total_exchanged: result.updated_report.total_exchanged,
+                    total_received: result.updated_report.total_received
+                });
+            }
+
+            // إعادة تعيين النموذج
+            setFormData(prev => ({
+                ...prev,
+                amount: '',
+                description: '',
+                paidTo: '',
+                notes: '',
+                currentTime: new Date().toLocaleString('ar-EG')
+            }));
+
+            // توليد رقم مرجع جديد
+            const now = new Date();
+            const dateStr = now.getFullYear().toString() +
+                           (now.getMonth() + 1).toString().padStart(2, '0') +
+                           now.getDate().toString().padStart(2, '0');
+            const timeStr = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            setReferenceNumber(`EXC${dateStr}${timeStr}`);
+
+            return result; // إرجاع النتيجة للاستخدام في createReceiptAndSave
+        } else {
+            const error = await response.json();
+            throw new Error(error.message || 'حدث خطأ');
+        }
+    };
+
     // إرسال المعاملة
     const handleSubmit = async () => {
         if (!formData.amount || !formData.description) {
@@ -145,7 +227,9 @@ export default function Exchange({
                 body: JSON.stringify({
                     invoiceNumber: formData.invoiceNumber,
                     amount: formData.amount,
-                    description: formData.description
+                    description: formData.description,
+                    paidTo: formData.paidTo,
+                    notes: formData.notes
                 })
             });
 
@@ -160,7 +244,8 @@ export default function Exchange({
                     setTodayReport({
                         exchanged_today: result.updated_report.exchanged_today,
                         operations: result.updated_report.operations,
-                        total_exchanged: result.updated_report.total_exchanged
+                        total_exchanged: result.updated_report.total_exchanged,
+                        total_received: result.updated_report.total_received
                     });
                 }
 
@@ -169,6 +254,8 @@ export default function Exchange({
                     ...prev,
                     amount: '',
                     description: '',
+                    paidTo: '',
+                    notes: '',
                     currentTime: new Date().toLocaleString('ar-EG')
                 }));
 
@@ -181,40 +268,47 @@ export default function Exchange({
                 setReferenceNumber(`EXC${dateStr}${timeStr}`);
 
                 alert('تم حفظ سند الصرف بنجاح!');
+                return result; // إرجاع النتيجة للاستخدام في createReceiptAndSave
             } else {
                 const error = await response.json();
                 alert(error.message || 'حدث خطأ');
+                return { success: false, error: error.message };
             }
         } catch (error) {
             console.error('Error:', error);
             alert('حدث خطأ في الشبكة');
+            return { success: false, error: error.message };
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // حفظ وطباعة الفاتورة
+    // حفظ وطباعة فاتورة سند الصرف المخصصة
     const handleSaveAndPrint = async () => {
         if (!formData.amount || !formData.description) {
             alert('يرجى ملء جميع الحقول المطلوبة');
             return;
         }
 
-        const saveTransactionResult = await createReceiptAndSave(
-            async () => await handleSubmit(),
+        const saveTransactionResult = await createExchangeReceiptAndSave(
+            handleSubmitSilent,
             {
-                transaction_type: 'charge', // سند الصرف = خصم
                 reference_number: formData.invoiceNumber,
+                employee_name: user?.name || 'الموظف الحالي',
+                person_name: formData.paidTo || 'غير محدد',
+                currency: 'دينار عراقي',
                 amount: formData.amount,
-                commission: 0, // لا توجد عمولة في سند الصرف
-                notes: `${formData.description}\nسند صرف`,
-                customer_phone: null
+                exchange_rate: '1',
+                amount_in_iqd: parseFloat(formData.amount),
+                beneficiary: formData.paidTo || 'غير محدد',
+                description: formData.description,
+                notes: formData.notes || ''
             },
-            'exchange' // نوع الخدمة
+            'exchange' // نوع السند: صرف
         );
 
         if (saveTransactionResult && saveTransactionResult.success) {
-            console.log('تم حفظ سند الصرف وإنشاء الفاتورة بنجاح');
+            console.log('تم حفظ سند الصرف وإنشاء الفاتورة المخصصة بنجاح');
         }
     };
 
@@ -276,6 +370,13 @@ export default function Exchange({
                             {/* تقرير اليوم */}
                             <div className="space-y-4">
                                 <h3 className="text-lg font-semibold text-gray-800 mb-4">تقرير شامل - جميع العمليات</h3>
+
+                                <div className="bg-green-50 rounded-lg p-4">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm text-green-700">إجمالي المستلم:</span>
+                                        <span className="font-bold text-green-800">{todayReport.total_received > 0 ? Math.floor(todayReport.total_received).toLocaleString() : '0'} د.ع</span>
+                                    </div>
+                                </div>
 
                                 <div className="bg-red-50 rounded-lg p-4">
                                     <div className="flex justify-between items-center">
@@ -384,6 +485,34 @@ export default function Exchange({
                                 />
                             </div>
 
+                            {/* صُرف للسيد */}
+                            <div className="mb-6">
+                                <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                                    صُرف للسيد:
+                                </label>
+                                <input
+                                    type="text"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-right"
+                                    placeholder="اسم الشخص المستلم"
+                                    value={formData.paidTo}
+                                    onChange={(e) => handleInputChange('paidTo', e.target.value)}
+                                />
+                            </div>
+
+                            {/* ملاحظات إضافية */}
+                            <div className="mb-8">
+                                <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                                    ملاحظات إضافية:
+                                </label>
+                                <textarea
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-right"
+                                    rows="2"
+                                    placeholder="ملاحظات أخرى..."
+                                    value={formData.notes}
+                                    onChange={(e) => handleInputChange('notes', e.target.value)}
+                                />
+                            </div>
+
                             {/* أزرار الحفظ */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <button
@@ -408,12 +537,22 @@ export default function Exchange({
                 </div>
             </div>
 
-            {/* نافذة الفاتورة الحرارية */}
+            {/* نافذة الفاتورة الحرارية العامة */}
             {showReceipt && receiptData && (
                 <ThermalReceipt
                     receiptData={receiptData}
                     onClose={closeReceipt}
                     onPrint={printReceipt}
+                />
+            )}
+
+            {/* نافذة فاتورة سند الصرف المخصصة */}
+            {showExchangeReceipt && exchangeReceiptData && (
+                <ReceiveExchangeThermalReceipt
+                    receiptData={exchangeReceiptData}
+                    receiptType="exchange"
+                    onClose={closeExchangeReceipt}
+                    onPrint={printExchangeReceipt}
                 />
             )}
 

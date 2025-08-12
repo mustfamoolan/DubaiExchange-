@@ -78,7 +78,8 @@ class ExchangeController extends Controller
             'operations' => ExchangeTransaction::where('user_id', $sessionUser['id'])
                 ->whereDate('created_at', today())
                 ->count(),
-            'total_exchanged' => $totalExchanged
+            'total_exchanged' => $totalExchanged,
+            'total_received' => $totalReceived // إضافة إجمالي المستلم
         ];
 
         return Inertia::render('Employee/Exchange', [
@@ -136,6 +137,7 @@ class ExchangeController extends Controller
                 'invoice_number' => $request->invoiceNumber,
                 'amount' => $request->amount,
                 'description' => $request->description,
+                'paid_to' => $request->paidTo ?? null,
                 'previous_balance' => $previousBalance,
                 'new_balance' => $newBalance,
                 'entered_by' => $sessionUser['name'],

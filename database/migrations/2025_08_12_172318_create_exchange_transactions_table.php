@@ -20,6 +20,7 @@ return new class extends Migration
             $table->decimal('previous_balance', 15, 2);
             $table->decimal('new_balance', 15, 2);
             $table->string('entered_by');
+            $table->string('paid_to')->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();
 

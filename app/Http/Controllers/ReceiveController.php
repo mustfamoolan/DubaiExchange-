@@ -49,17 +49,25 @@ class ReceiveController extends Controller
             return $sessionUser;
         }
 
-        // الحصول على الرصيد الافتتاحي
+        // الحصول على الرصيد الافتتاحي النقدي
         $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
-        $currentBalance = $openingBalance ? $openingBalance->naqa : 0; // استخدام naqa للنقد
+        $currentNaqaBalance = $openingBalance ? $openingBalance->naqa : 0;
+
+        // حساب إجمالي المستلم (من سندات القبض)
+        $totalReceived = ReceiveTransaction::where('user_id', $sessionUser['id'])
+            ->sum('amount_in_iqd');
+
+        // حساب إجمالي المصروف (من سندات الصرف)
+        $totalExchanged = \App\Models\ExchangeTransaction::where('user_id', $sessionUser['id'])
+            ->sum('amount');
+
+        // حساب الرصيد الحالي الموحد
+        $currentBalance = $currentNaqaBalance + $totalReceived - $totalExchanged;
 
         // حساب المبلغ المستلم اليوم (بالدينار العراقي)
         $todayReceived = ReceiveTransaction::where('user_id', $sessionUser['id'])
             ->whereDate('created_at', today())
-            ->sum('amount_in_iqd'); // استخدام المبلغ بالدينار العراقي
-
-        // حساب الرصيد الحالي
-        $currentNaqaBalance = $currentBalance + $todayReceived;
+            ->sum('amount_in_iqd');
 
         // الحصول على المعاملات الأخيرة
         $transactions = ReceiveTransaction::where('user_id', $sessionUser['id'])
@@ -73,14 +81,14 @@ class ReceiveController extends Controller
             'operations' => ReceiveTransaction::where('user_id', $sessionUser['id'])
                 ->whereDate('created_at', today())
                 ->count(),
-            'total_received' => ReceiveTransaction::where('user_id', $sessionUser['id'])
-                ->sum('amount_in_iqd') // استخدام المبلغ بالدينار العراقي
+            'total_received' => $totalReceived,
+            'total_exchanged' => $totalExchanged // إضافة إجمالي المصروف للعرض الموحد
         ];
 
         return Inertia::render('Employee/Receive', [
             'user' => $sessionUser,
-            'currentBalance' => $currentNaqaBalance,
-            'openingBalance' => $currentBalance,
+            'currentBalance' => $currentBalance,
+            'openingBalance' => $currentNaqaBalance,
             'transactions' => $transactions,
             'quickReport' => $quickReport
         ]);
@@ -108,19 +116,25 @@ class ReceiveController extends Controller
         DB::beginTransaction();
 
         try {
-            // Get current balance from opening balance
+            // الحصول على الرصيد الافتتاحي النقدي
             $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
-            $currentBalance = $openingBalance ? $openingBalance->naqa : 0;
+            $currentNaqaBalance = $openingBalance ? $openingBalance->naqa : 0;
 
-            // Calculate today's total received (in IQD)
-            $todayReceived = ReceiveTransaction::where('user_id', $sessionUser['id'])
-                ->whereDate('created_at', today())
+            // حساب إجمالي المستلم (من سندات القبض)
+            $totalReceived = ReceiveTransaction::where('user_id', $sessionUser['id'])
                 ->sum('amount_in_iqd');
+
+            // حساب إجمالي المصروف (من سندات الصرف)
+            $totalExchanged = \App\Models\ExchangeTransaction::where('user_id', $sessionUser['id'])
+                ->sum('amount');
+
+            // حساب الرصيد الحالي الموحد
+            $currentBalance = $currentNaqaBalance + $totalReceived - $totalExchanged;
 
             // حساب المبلغ بالدينار العراقي
             $amountInIqd = $request->amount * $request->exchange_rate;
 
-            $newBalance = $currentBalance + $todayReceived + $amountInIqd;
+            $newBalance = $currentBalance + $amountInIqd;
 
             // Create transaction record
             $transaction = ReceiveTransaction::create([
@@ -134,7 +148,7 @@ class ReceiveController extends Controller
                 'description' => $request->description,
                 'beneficiary' => $request->beneficiary,
                 'receiver_name' => $sessionUser['name'],
-                'previous_balance' => $currentBalance + $todayReceived,
+                'previous_balance' => $currentBalance,
                 'new_balance' => $newBalance,
                 'notes' => $request->notes,
                 'entered_by' => $sessionUser['name']
@@ -142,7 +156,7 @@ class ReceiveController extends Controller
 
             DB::commit();
 
-            // إعادة حساب التقارير بعد العملية الجديدة
+            // إعادة حساب التقارير بعد العملية الجديدة مع الرصيد الموحد
             $updatedTodayReceived = ReceiveTransaction::where('user_id', $sessionUser['id'])
                 ->whereDate('created_at', today())
                 ->sum('amount_in_iqd');
@@ -154,6 +168,9 @@ class ReceiveController extends Controller
             $updatedTotalReceived = ReceiveTransaction::where('user_id', $sessionUser['id'])
                 ->sum('amount_in_iqd');
 
+            $updatedTotalExchanged = \App\Models\ExchangeTransaction::where('user_id', $sessionUser['id'])
+                ->sum('amount');
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم حفظ سند القبض بنجاح',
@@ -162,7 +179,8 @@ class ReceiveController extends Controller
                 'updated_report' => [
                     'received_today' => $updatedTodayReceived,
                     'operations' => $updatedOperations,
-                    'total_received' => $updatedTotalReceived
+                    'total_received' => $updatedTotalReceived,
+                    'total_exchanged' => $updatedTotalExchanged
                 ]
             ]);
 

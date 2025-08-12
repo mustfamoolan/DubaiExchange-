@@ -95,7 +95,7 @@ export const useThermalReceipt = () => {
     };
 
     // إنشاء فاتورة وحفظ المعاملة معاً
-    const createReceiptAndSave = async (transactionData, serviceType, saveTransaction) => {
+    const createReceiptAndSave = async (saveTransaction, transactionData, serviceType) => {
         try {
             // حفظ المعاملة أولاً
             const transactionResult = await saveTransaction();
@@ -113,10 +113,11 @@ export const useThermalReceipt = () => {
                     receipt: receiptResult
                 };
             } else {
-                throw new Error('فشل في حفظ المعاملة');
+                throw new Error(transactionResult?.error || 'فشل في حفظ المعاملة');
             }
         } catch (error) {
             console.error('خطأ في حفظ المعاملة وإنشاء الفاتورة:', error);
+            alert('حدث خطأ: ' + error.message);
             return {
                 success: false,
                 error: error.message

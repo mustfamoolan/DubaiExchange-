@@ -3,23 +3,26 @@ import EmployeeLayout from '../../Layouts/EmployeeLayout';
 import { router } from '@inertiajs/react';
 import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
 import ThermalReceipt from '../../Components/ThermalReceipt';
+import { useReceiveExchangeReceipt } from '../../Hooks/useReceiveExchangeReceipt';
+import ReceiveExchangeThermalReceipt from '../../Components/ReceiveExchangeThermalReceipt';
 
 export default function Receive({
     user,
     currentBalance = 0,
     openingBalance = 0,
     transactions = [],
-    quickReport = { received_today: 0, operations: 0, total_received: 0 }
+    quickReport = { received_today: 0, operations: 0, total_received: 0, total_exchanged: 0 }
 }) {
     const [balance, setBalance] = useState(currentBalance);
     const [showDetailedReport, setShowDetailedReport] = useState(false);
     const [todayReport, setTodayReport] = useState({
         received_today: quickReport.received_today,
         operations: quickReport.operations,
-        total_received: quickReport.total_received
+        total_received: quickReport.total_received,
+        total_exchanged: quickReport.total_exchanged
     });
 
-    // استخدام hook الفواتير الحرارية
+    // استخدام hook الفواتير الحرارية العامة
     const {
         showReceipt,
         receiptData,
@@ -29,6 +32,17 @@ export default function Receive({
         closeReceipt,
         createReceiptAndSave
     } = useThermalReceipt();
+
+    // استخدام hook المخصص لسندات القبض والصرف
+    const {
+        showReceipt: showReceiveReceipt,
+        receiptData: receiveReceiptData,
+        isCreatingReceipt: isCreatingReceiveReceipt,
+        createReceiveExchangeReceipt,
+        createReceiptAndSave: createReceiveReceiptAndSave,
+        printReceipt: printReceiveReceipt,
+        closeReceipt: closeReceiveReceipt
+    } = useReceiveExchangeReceipt();
 
     // بيانات النموذج
     const [formData, setFormData] = useState({
@@ -114,7 +128,16 @@ export default function Receive({
 
     // تحديث قيم النموذج
     const handleInputChange = (field, value) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        setFormData(prev => {
+            const newData = { ...prev, [field]: value };
+
+            // إذا تم تغيير العملة إلى دينار عراقي، جعل سعر الصرف 1 تلقائياً
+            if (field === 'currency' && value === 'دينار عراقي') {
+                newData.exchange_rate = '1';
+            }
+
+            return newData;
+        });
     };
 
     // إضافة state للتقرير المفصل
@@ -153,9 +176,102 @@ export default function Receive({
         }
     };
 
+    // إرسال المعاملة (بدون رسائل تأكيد للاستخدام مع الطباعة)
+    const handleSubmitSilent = async () => {
+        // التحقق من الحقول المطلوبة (سعر الصرف مطلوب فقط إذا لم تكن العملة دينار عراقي)
+        const isExchangeRateRequired = formData.currency !== 'دينار عراقي';
+
+        if (!formData.receivedFrom || !formData.amount || !formData.currency ||
+            (isExchangeRateRequired && !formData.exchange_rate)) {
+            throw new Error('يرجى ملء جميع الحقول المطلوبة');
+        }
+
+        if (parseFloat(formData.amount) <= 0) {
+            throw new Error('يرجى إدخال مبلغ صحيح');
+        }
+
+        if (isExchangeRateRequired && parseFloat(formData.exchange_rate) <= 0) {
+            throw new Error('يرجى إدخال سعر صرف صحيح');
+        }
+
+        const response = await fetch('/employee/receive', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            },
+            body: JSON.stringify({
+                documentNumber: formData.documentNumber,
+                receivedFrom: formData.receivedFrom,
+                amount: formData.amount,
+                currency: formData.currency,
+                exchange_rate: formData.exchange_rate,
+                description: formData.description,
+                beneficiary: 'الصندوق النقدي', // قيمة ثابتة
+                notes: formData.notes
+            })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+
+            // تحديث الرصيد
+            setBalance(result.new_balance);
+
+            // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
+            if (result.updated_report) {
+                setTodayReport({
+                    received_today: result.updated_report.received_today,
+                    operations: result.updated_report.operations,
+                    total_received: result.updated_report.total_received,
+                    total_exchanged: result.updated_report.total_exchanged
+                });
+            }
+
+            // إعادة تعيين النموذج
+            setFormData(prev => ({
+                ...prev,
+                receivedFrom: '',
+                amount: '',
+                currency: '',
+                exchange_rate: '',
+                description: '',
+                notes: '',
+                currentTime: new Date().toLocaleString('ar-EG')
+            }));
+
+            // توليد رقم مرجع جديد
+            const now = new Date();
+            const dateStr = now.getFullYear().toString() +
+                           (now.getMonth() + 1).toString().padStart(2, '0') +
+                           now.getDate().toString().padStart(2, '0');
+            const timeStr = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            setReferenceNumber(`REC${dateStr}${timeStr}`);
+
+            // تحديث التوقيت الحالي
+            setCurrentDateTime(now.toLocaleString('en-US', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            }));
+
+            return result; // إرجاع النتيجة للاستخدام في createReceiptAndSave
+        } else {
+            const error = await response.json();
+            throw new Error(error.message || 'حدث خطأ');
+        }
+    };
+
     // إرسال المعاملة
     const handleSubmit = async () => {
-        if (!formData.receivedFrom || !formData.amount || !formData.currency || !formData.exchange_rate) {
+        // التحقق من الحقول المطلوبة (سعر الصرف مطلوب فقط إذا لم تكن العملة دينار عراقي)
+        const isExchangeRateRequired = formData.currency !== 'دينار عراقي';
+
+        if (!formData.receivedFrom || !formData.amount || !formData.currency ||
+            (isExchangeRateRequired && !formData.exchange_rate)) {
             alert('يرجى ملء جميع الحقول المطلوبة');
             return;
         }
@@ -165,7 +281,7 @@ export default function Receive({
             return;
         }
 
-        if (parseFloat(formData.exchange_rate) <= 0) {
+        if (isExchangeRateRequired && parseFloat(formData.exchange_rate) <= 0) {
             alert('يرجى إدخال سعر صرف صحيح');
             return;
         }
@@ -202,7 +318,8 @@ export default function Receive({
                     setTodayReport({
                         received_today: result.updated_report.received_today,
                         operations: result.updated_report.operations,
-                        total_received: result.updated_report.total_received
+                        total_received: result.updated_report.total_received,
+                        total_exchanged: result.updated_report.total_exchanged
                     });
                 }
 
@@ -237,42 +354,53 @@ export default function Receive({
                 }));
 
                 alert('تم حفظ سند القبض بنجاح!');
+                return result; // إرجاع النتيجة للاستخدام في createReceiptAndSave
             } else {
                 const error = await response.json();
                 alert(error.message || 'حدث خطأ');
+                return { success: false, error: error.message };
             }
         } catch (error) {
             console.error('Error:', error);
             alert('حدث خطأ في الشبكة');
+            return { success: false, error: error.message };
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // حفظ وطباعة الفاتورة
+    // حفظ وطباعة فاتورة سند القبض المخصصة
     const handleSaveAndPrint = async () => {
-        if (!formData.receivedFrom || !formData.amount || !formData.currency || !formData.exchange_rate) {
+        // التحقق من الحقول المطلوبة (سعر الصرف مطلوب فقط إذا لم تكن العملة دينار عراقي)
+        const isExchangeRateRequired = formData.currency !== 'دينار عراقي';
+
+        if (!formData.receivedFrom || !formData.amount || !formData.currency ||
+            (isExchangeRateRequired && !formData.exchange_rate)) {
             alert('يرجى ملء جميع الحقول المطلوبة');
             return;
         }
 
-        const amountInIqd = Math.floor(parseFloat(formData.amount || 0) * parseFloat(formData.exchange_rate || 0));
+        const amountInIqd = Math.floor(parseFloat(formData.amount || 0) * parseFloat(formData.exchange_rate || 1));
 
-        const saveTransactionResult = await createReceiptAndSave(
-            async () => await handleSubmit(),
+        const saveTransactionResult = await createReceiveReceiptAndSave(
+            handleSubmitSilent,
             {
-                transaction_type: 'payment', // سند القبض = دفع/استلام
                 reference_number: formData.documentNumber,
+                employee_name: formData.receiverName,
+                person_name: formData.receivedFrom,
+                currency: formData.currency,
                 amount: formData.amount,
-                commission: 0, // لا توجد عمولة في سند القبض
-                notes: `${formData.description}\nمن: ${formData.receivedFrom}\nالعملة: ${formData.currency}\nسعر الصرف: ${formData.exchange_rate}\nالمبلغ بالدينار: ${amountInIqd.toLocaleString()} د.ع\nالمستفيد: الصندوق النقدي`,
-                customer_phone: null
+                exchange_rate: formData.exchange_rate || '1',
+                amount_in_iqd: amountInIqd,
+                beneficiary: 'الصندوق النقدي',
+                description: formData.description,
+                notes: formData.notes
             },
-            'receive' // نوع الخدمة
+            'receive' // نوع السند: قبض
         );
 
         if (saveTransactionResult && saveTransactionResult.success) {
-            console.log('تم حفظ سند القبض وإنشاء الفاتورة بنجاح');
+            console.log('تم حفظ سند القبض وإنشاء الفاتورة المخصصة بنجاح');
         }
     };
 
@@ -291,6 +419,15 @@ export default function Receive({
 
     const handleBack = () => {
         router.visit('/employee/dashboard');
+    };
+
+    // حساب ما إذا كان النموذج صالحاً للإرسال
+    const isFormValid = () => {
+        const isExchangeRateRequired = formData.currency !== 'دينار عراقي';
+        return formData.receivedFrom &&
+               formData.amount &&
+               formData.currency &&
+               (!isExchangeRateRequired || formData.exchange_rate);
     };
 
     return (
@@ -355,6 +492,13 @@ export default function Receive({
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm text-blue-700">إجمالي المستلم:</span>
                                         <span className="font-bold text-blue-800">{todayReport.total_received > 0 ? Math.floor(todayReport.total_received).toLocaleString() : '0'} د.ع</span>
+                                    </div>
+                                </div>
+
+                                <div className="bg-red-50 rounded-lg p-4">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm text-red-700">إجمالي المصروف:</span>
+                                        <span className="font-bold text-red-800">{todayReport.total_exchanged > 0 ? Math.floor(todayReport.total_exchanged).toLocaleString() : '0'} د.ع</span>
                                     </div>
                                 </div>
 
@@ -466,20 +610,23 @@ export default function Receive({
                                     </select>
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
-                                        سعر الصرف: *
-                                    </label>
-                                    <input
-                                        type="number"
-                                        step="0.0001"
-                                        min="0"
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-right"
-                                        value={formData.exchange_rate}
-                                        onChange={(e) => handleInputChange('exchange_rate', e.target.value)}
-                                        placeholder="أدخل سعر الصرف"
-                                    />
-                                </div>
+                                {/* حقل سعر الصرف - يُخفى عندما تكون العملة دينار عراقي */}
+                                {formData.currency !== 'دينار عراقي' && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                                            سعر الصرف: *
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.0001"
+                                            min="0"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-right"
+                                            value={formData.exchange_rate}
+                                            onChange={(e) => handleInputChange('exchange_rate', e.target.value)}
+                                            placeholder="أدخل سعر الصرف"
+                                        />
+                                    </div>
+                                )}
 
                                 {/* عرض المبلغ بالدينار العراقي */}
                                 {formData.amount && formData.exchange_rate && (
@@ -526,7 +673,7 @@ export default function Receive({
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <button
                                     onClick={handleSaveAndPrint}
-                                    disabled={isSubmitting || !formData.receivedFrom || !formData.amount || !formData.currency || !formData.exchange_rate}
+                                    disabled={isSubmitting || !isFormValid()}
                                     className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-xl transition-colors duration-200 flex items-center justify-center"
                                 >
                                     <span className="ml-2">🖨️</span>
@@ -534,7 +681,7 @@ export default function Receive({
                                 </button>
                                 <button
                                     onClick={handleSubmit}
-                                    disabled={isSubmitting || !formData.receivedFrom || !formData.amount || !formData.currency || !formData.exchange_rate}
+                                    disabled={isSubmitting || !isFormValid()}
                                     className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-xl transition-colors duration-200 flex items-center justify-center"
                                 >
                                     <span className="ml-2">💾</span>
@@ -546,12 +693,22 @@ export default function Receive({
                 </div>
             </div>
 
-            {/* نافذة الفاتورة الحرارية */}
+            {/* نافذة الفاتورة الحرارية العامة */}
             {showReceipt && receiptData && (
                 <ThermalReceipt
                     receiptData={receiptData}
                     onClose={closeReceipt}
                     onPrint={printReceipt}
+                />
+            )}
+
+            {/* نافذة فاتورة سند القبض المخصصة */}
+            {showReceiveReceipt && receiveReceiptData && (
+                <ReceiveExchangeThermalReceipt
+                    receiptData={receiveReceiptData}
+                    receiptType="receive"
+                    onClose={closeReceiveReceipt}
+                    onPrint={printReceiveReceipt}
                 />
             )}
 

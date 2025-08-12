@@ -14,6 +14,7 @@ class ExchangeTransaction extends Model
         'invoice_number',
         'amount',
         'description',
+        'paid_to',
         'previous_balance',
         'new_balance',
         'entered_by',
