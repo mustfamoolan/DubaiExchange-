@@ -198,9 +198,9 @@ export default function ZainCash({ user, currentBalance = 0, transactions = [], 
         };
 
         const result = await createReceiptAndSave(
+            () => handleSubmit(activeTab),
             transactionData,
-            'zain_cash',
-            () => handleSubmit(activeTab)
+            'zain_cash'
         );
 
         if (result.success) {

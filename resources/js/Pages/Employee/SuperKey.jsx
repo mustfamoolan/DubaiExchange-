@@ -210,9 +210,9 @@ export default function SuperKey({ user, currentBalance = 0, transactions = [], 
         };
 
         const result = await createReceiptAndSave(
+            () => handleSubmit(activeTab),
             transactionData,
-            'super_key',
-            () => handleSubmit(activeTab)
+            'super_key'
         );
 
         if (result.success) {

@@ -198,9 +198,9 @@ export default function RashidBank({ user, currentBalance = 0, transactions = []
         };
 
         const result = await createReceiptAndSave(
+            () => handleSubmit(activeTab),
             transactionData,
-            'rashid',
-            () => handleSubmit(activeTab)
+            'rashid'
         );
 
         if (result.success) {

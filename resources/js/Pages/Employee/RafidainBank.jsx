@@ -198,9 +198,9 @@ export default function RafidainBank({ user, currentBalance = 0, transactions = 
         };
 
         const result = await createReceiptAndSave(
+            () => handleSubmit(activeTab),
             transactionData,
-            'rafidain',
-            () => handleSubmit(activeTab)
+            'rafidain'
         );
 
         if (result.success) {
