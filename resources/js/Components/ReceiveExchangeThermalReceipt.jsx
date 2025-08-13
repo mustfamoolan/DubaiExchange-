@@ -17,6 +17,11 @@ export default function ReceiveExchangeThermalReceipt({
                 <meta charset="utf-8">
                 <title>طباعة ${receiptType === 'receive' ? 'سند القبض' : 'سند الصرف'}</title>
                 <style>
+                    @page {
+                        size: 80mm auto;
+                        margin: 2mm;
+                    }
+
                     * {
                         margin: 0;
                         padding: 0;
@@ -24,25 +29,29 @@ export default function ReceiveExchangeThermalReceipt({
                     }
 
                     body {
-                        font-family: 'Arial', sans-serif;
-                        font-size: 11px;
-                        line-height: 1.2;
+                        font-family: 'Courier New', monospace;
+                        font-size: 10px;
+                        line-height: 1.1;
                         color: #000;
                         background: #fff;
                         direction: rtl;
                         text-align: right;
+                        width: 76mm;
+                        margin: 0 auto;
+                        padding: 2mm;
                     }
 
                     .receipt {
-                        width: 58mm;
-                        padding: 2mm;
+                        width: 100%;
+                        max-width: 72mm;
+                        padding: 1mm;
                         margin: 0 auto;
                     }
 
                     .header {
                         text-align: center;
-                        border-bottom: 1px solid #000;
-                        padding-bottom: 3mm;
+                        border-bottom: 2px dashed #000;
+                        padding-bottom: 2mm;
                         margin-bottom: 3mm;
                     }
 
@@ -56,6 +65,9 @@ export default function ReceiveExchangeThermalReceipt({
                         font-weight: bold;
                         font-size: 11px;
                         margin-bottom: 1mm;
+                        background: #000;
+                        color: #fff;
+                        padding: 1mm;
                     }
 
                     .receipt-number {
@@ -68,66 +80,73 @@ export default function ReceiveExchangeThermalReceipt({
                     }
 
                     .content {
-                        margin: 3mm 0;
+                        margin: 2mm 0;
                     }
 
                     .field-row {
                         display: flex;
                         justify-content: space-between;
                         align-items: flex-start;
-                        margin-bottom: 2mm;
-                        border-bottom: 1px dotted #ccc;
-                        padding-bottom: 1mm;
+                        margin-bottom: 1mm;
+                        padding-bottom: 0.5mm;
+                        border-bottom: 1px dotted #999;
+                        font-size: 9px;
                     }
 
                     .field-label {
                         font-weight: bold;
-                        font-size: 10px;
-                        min-width: 20mm;
+                        min-width: 25mm;
                         flex-shrink: 0;
                     }
 
                     .field-value {
-                        font-size: 10px;
                         text-align: left;
                         flex-grow: 1;
                         word-wrap: break-word;
                     }
 
                     .amount-section {
-                        border: 1px solid #000;
+                        border: 2px solid #000;
                         padding: 2mm;
                         margin: 3mm 0;
                         text-align: center;
+                        background: #f5f5f5;
+                    }
+
+                    .field-label {
+                        font-size: 9px;
+                        margin-bottom: 1mm;
                     }
 
                     .amount-large {
                         font-size: 14px;
                         font-weight: bold;
                         margin: 1mm 0;
+                        color: #000;
                     }
 
                     .description-section {
-                        border: 1px solid #ccc;
+                        border: 1px dashed #000;
                         padding: 2mm;
                         margin: 2mm 0;
                         min-height: 8mm;
+                        font-size: 8px;
                     }
 
                     .description-title {
                         font-weight: bold;
-                        font-size: 10px;
+                        font-size: 9px;
                         margin-bottom: 1mm;
                     }
 
                     .description-text {
-                        font-size: 9px;
-                        line-height: 1.3;
+                        font-size: 8px;
+                        line-height: 1.2;
                     }
 
                     .signature-section {
-                        margin-top: 5mm;
-                        border-top: 1px solid #000;
+                        margin-top: 4mm;
+                        border-top: 2px dashed #000;
                         padding-top: 3mm;
                     }
 
@@ -139,12 +158,12 @@ export default function ReceiveExchangeThermalReceipt({
 
                     .signature-box {
                         text-align: center;
-                        width: 22mm;
+                        width: 30mm;
                     }
 
                     .signature-line {
                         border-bottom: 1px solid #000;
-                        height: 5mm;
+                        height: 8mm;
                         margin-bottom: 1mm;
                     }
 
@@ -155,36 +174,58 @@ export default function ReceiveExchangeThermalReceipt({
 
                     .footer {
                         text-align: center;
-                        margin-top: 5mm;
+                        margin-top: 4mm;
                         padding-top: 2mm;
-                        border-top: 1px dotted #ccc;
+                        border-top: 2px dashed #000;
                         font-size: 8px;
                     }
 
                     .notes-section {
-                        margin-top: 3mm;
-                        padding: 2mm;
-                        border: 1px dashed #ccc;
+                        margin-top: 2mm;
+                        padding: 1mm;
+                        border: 1px dashed #000;
+                        font-size: 8px;
                     }
 
                     .notes-title {
                         font-weight: bold;
-                        font-size: 9px;
+                        font-size: 8px;
                         margin-bottom: 1mm;
                     }
 
                     .notes-text {
-                        font-size: 8px;
+                        font-size: 7px;
                         line-height: 1.2;
                     }
 
                     @media print {
+                        @page {
+                            size: 80mm auto;
+                            margin: 1mm;
+                        }
+
                         body {
                             print-color-adjust: exact;
+                            -webkit-print-color-adjust: exact;
+                            width: 78mm !important;
+                            margin: 0 !important;
+                            padding: 1mm !important;
                         }
 
                         .receipt {
                             page-break-inside: avoid;
+                            width: 100% !important;
+                            max-width: 76mm !important;
+                        }
+
+                        .amount-section {
+                            background: #f5f5f5 !important;
+                            border: 2px solid #000 !important;
+                        }
+
+                        .receipt-title {
+                            background: #000 !important;
+                            color: #fff !important;
                         }
                     }
                 </style>
@@ -201,7 +242,7 @@ export default function ReceiveExchangeThermalReceipt({
         setTimeout(() => {
             printWindow.print();
             printWindow.close();
-        }, 250);
+        }, 500);
 
         if (onPrint) onPrint();
     };
