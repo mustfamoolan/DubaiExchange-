@@ -263,6 +263,14 @@ Route::prefix('rashid')->group(function () {
     Route::get('/detailed-report', [RashidBankController::class, 'getDetailedReport'])->name('rashid.detailed-report');
 });
 
+// مسارات بنك الرشيد
+Route::prefix('rashid')->group(function () {
+    Route::post('/charge', [RashidBankController::class, 'charge'])->name('rashid.charge');
+    Route::post('/payment', [RashidBankController::class, 'payment'])->name('rashid.payment');
+    Route::get('/transactions', [RashidBankController::class, 'getTransactions'])->name('rashid.transactions');
+    Route::get('/detailed-report', [RashidBankController::class, 'getDetailedReport'])->name('rashid.detailed-report');
+});
+
 // مسارات زين كاش
 Route::prefix('zain-cash')->group(function () {
     Route::post('/charge', [ZainCashController::class, 'charge'])->name('zain-cash.charge');

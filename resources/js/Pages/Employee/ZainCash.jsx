@@ -104,6 +104,8 @@ export default function ZainCash({ user, currentBalance = 0, currentCashBalance 
                 method: 'GET',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
                 }
             });
 
@@ -111,9 +113,23 @@ export default function ZainCash({ user, currentBalance = 0, currentCashBalance 
                 const result = await response.json();
                 setDetailedReportData(result.report);
                 return result.report;
+            } else if (response.status === 401) {
+                alert('جلسة العمل منتهية الصلاحية، يرجى تسجيل الدخول مرة أخرى');
+                router.visit('/login');
+                return null;
+            } else {
+                // محاولة قراءة رسالة الخطأ
+                try {
+                    const errorData = await response.json();
+                    alert(errorData.message || 'حدث خطأ أثناء جلب التقرير');
+                } catch {
+                    alert('حدث خطأ أثناء جلب التقرير');
+                }
+                return null;
             }
         } catch (error) {
             console.error('Error fetching detailed report:', error);
+            alert('حدث خطأ في الشبكة أثناء جلب التقرير');
         }
         return null;
     };
@@ -141,6 +157,7 @@ export default function ZainCash({ user, currentBalance = 0, currentCashBalance 
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
                 },
                 body: JSON.stringify({
                     ...formData,
@@ -173,10 +190,19 @@ export default function ZainCash({ user, currentBalance = 0, currentCashBalance 
 
                 alert(`تم ${action === 'charge' ? 'الشحن' : 'الدفع'} بنجاح!`);
                 return { success: true, result };
+            } else if (response.status === 401) {
+                alert('جلسة العمل منتهية الصلاحية، يرجى تسجيل الدخول مرة أخرى');
+                router.visit('/login');
+                return { success: false, error: 'Unauthorized' };
             } else {
-                const error = await response.json();
-                alert(error.message || 'حدث خطأ');
-                return { success: false, error };
+                // محاولة قراءة رسالة الخطأ
+                try {
+                    const error = await response.json();
+                    alert(error.message || 'حدث خطأ');
+                } catch {
+                    alert('حدث خطأ في الخادم');
+                }
+                return { success: false, error: 'Server error' };
             }
         } catch (error) {
             console.error('Error:', error);
