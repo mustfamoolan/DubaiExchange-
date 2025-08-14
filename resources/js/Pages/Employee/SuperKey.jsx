@@ -4,8 +4,9 @@ import { router } from '@inertiajs/react';
 import ThermalReceipt from '../../Components/ThermalReceipt';
 import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
 
-export default function SuperKey({ user, currentBalance = 0, transactions = [], openingBalance = 0, quickReport = { charges: 0, payments: 0, operations: 0 } }) {
+export default function SuperKey({ user, currentBalance = 0, currentCashBalance = 0, transactions = [], openingBalance = 0, quickReport = { charges: 0, payments: 0, operations: 0 } }) {
     const [balance, setBalance] = useState(currentBalance);
+    const [cashBalance, setCashBalance] = useState(currentCashBalance);
     const [activeTab, setActiveTab] = useState('charge'); // 'charge' or 'payment'
     const [showDetailedReport, setShowDetailedReport] = useState(false);
     const [todayReport, setTodayReport] = useState({
@@ -153,6 +154,11 @@ export default function SuperKey({ user, currentBalance = 0, transactions = [], 
                 // تحديث الرصيد
                 setBalance(result.new_balance);
 
+                // تحديث الرصيد النقدي
+                if (result.new_cash_balance !== undefined) {
+                    setCashBalance(result.new_cash_balance);
+                }
+
                 // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
                 if (result.updated_report) {
                     setTodayReport({
@@ -256,10 +262,18 @@ export default function SuperKey({ user, currentBalance = 0, transactions = [], 
                             </div>
 
                             {/* عرض الرصيد */}
-                            <div className="bg-yellow-50 rounded-xl p-6 mb-6">
+                            <div className="bg-yellow-50 rounded-xl p-6 mb-4">
                                 <h3 className="text-lg font-semibold text-yellow-800 mb-2">الرصيد المتبقي</h3>
                                 <p className="text-3xl font-bold text-yellow-700">
                                     {Math.floor(balance).toLocaleString()} د.ع
+                                </p>
+                            </div>
+
+                            {/* عرض الرصيد النقدي */}
+                            <div className="bg-green-50 rounded-xl p-6 mb-6">
+                                <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد النقدي</h3>
+                                <p className="text-2xl font-bold text-green-700">
+                                    {Math.floor(cashBalance).toLocaleString()} د.ع
                                 </p>
                             </div>
 

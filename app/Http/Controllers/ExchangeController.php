@@ -30,6 +30,64 @@ class ExchangeController extends Controller
     }
 
     /**
+     * حساب الرصيد الحالي للموظف حسب العملة
+     */
+    private function getEmployeeCurrentBalance($userId, $currency = 'iqd')
+    {
+        $openingBalance = OpeningBalance::where('user_id', $userId)->first();
+
+        if ($currency === 'usd') {
+            // حساب رصيد الدولار
+            $openingUsd = $openingBalance ? $openingBalance->usd_cash : 0;
+
+            // حساب إجمالي المستلم بالدولار (من سندات القبض)
+            $totalReceivedUsd = \App\Models\ReceiveTransaction::where('user_id', $userId)
+                ->where('currency', 'usd')
+                ->sum('amount'); // الكمية الأصلية بالدولار
+
+            // حساب إجمالي المصروف بالدولار
+            $totalExchangedUsd = ExchangeTransaction::where('user_id', $userId)
+                ->where('currency_type', 'usd')
+                ->sum('amount');
+
+            return $openingUsd + $totalReceivedUsd - $totalExchangedUsd;
+        } else {
+            // حساب رصيد الدينار العراقي (النقدي)
+            $openingIqd = $openingBalance ? $openingBalance->naqa : 0;
+
+            // حساب إجمالي المستلم بالدينار (من سندات القبض)
+            // نأخذ amount_in_iqd التي تحتوي على المبلغ محولاً للدينار
+            $totalReceivedIqd = \App\Models\ReceiveTransaction::where('user_id', $userId)
+                ->sum('amount_in_iqd');
+
+            // حساب إجمالي المصروف بالدينار
+            $totalExchangedIqd = ExchangeTransaction::where('user_id', $userId)
+                ->where(function($query) {
+                    $query->where('currency_type', 'iqd')
+                          ->orWhereNull('currency_type'); // للمعاملات القديمة
+                })
+                ->sum('amount');
+
+            return $openingIqd + $totalReceivedIqd - $totalExchangedIqd;
+        }
+    }    /**
+     * التحقق من كفاية رصيد العميل
+     */
+    private function checkCustomerBalance($customerId, $amount, $currency)
+    {
+        $customer = \App\Models\Customer::find($customerId);
+        if (!$customer) {
+            return false;
+        }
+
+        $currentBalance = $currency === 'usd'
+            ? $customer->remaining_balance_usd
+            : $customer->remaining_balance_iqd;
+
+        return $currentBalance >= $amount;
+    }
+
+    /**
      * التحقق من الصلاحية وإرجاع redirect إذا لم تكن صحيحة
      */
     private function checkAuth()
@@ -49,20 +107,21 @@ class ExchangeController extends Controller
             return $sessionUser;
         }
 
-        // الحصول على الرصيد الافتتاحي النقدي
-        $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
-        $currentNaqaBalance = $openingBalance ? $openingBalance->naqa : 0;
+        // حساب الأرصدة الحالية للموظف
+        $currentIqdBalance = $this->getEmployeeCurrentBalance($sessionUser['id'], 'iqd');
+        $currentUsdBalance = $this->getEmployeeCurrentBalance($sessionUser['id'], 'usd');
 
-        // حساب إجمالي المستلم (من سندات القبض)
+        // الحصول على الرصيد الافتتاحي النقدي (للعرض فقط)
+        $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
+        $openingNaqaBalance = $openingBalance ? $openingBalance->naqa : 0;
+
+        // حساب إجمالي المستلم (من سندات القبض) - للعرض في التقرير
         $totalReceived = \App\Models\ReceiveTransaction::where('user_id', $sessionUser['id'])
             ->sum('amount_in_iqd');
 
-        // حساب إجمالي المصروف
+        // حساب إجمالي المصروف - للعرض في التقرير
         $totalExchanged = ExchangeTransaction::where('user_id', $sessionUser['id'])
             ->sum('amount');
-
-        // حساب الرصيد الحالي
-        $currentBalance = $currentNaqaBalance + $totalReceived - $totalExchanged;
 
         // الحصول على المعاملات الأخيرة
         $transactions = ExchangeTransaction::where('user_id', $sessionUser['id'])
@@ -79,13 +138,17 @@ class ExchangeController extends Controller
                 ->whereDate('created_at', today())
                 ->count(),
             'total_exchanged' => $totalExchanged,
-            'total_received' => $totalReceived // إضافة إجمالي المستلم
+            'total_received' => $totalReceived,
+            'current_iqd_balance' => $currentIqdBalance,
+            'current_usd_balance' => $currentUsdBalance
         ];
 
         return Inertia::render('Employee/Exchange', [
             'user' => $sessionUser,
-            'currentBalance' => $currentBalance,
-            'openingBalance' => $currentNaqaBalance,
+            'currentBalance' => $currentIqdBalance, // للتوافق مع الكود الحالي
+            'currentIqdBalance' => $currentIqdBalance,
+            'currentUsdBalance' => $currentUsdBalance,
+            'openingBalance' => $openingNaqaBalance,
             'transactions' => $transactions,
             'quickReport' => $quickReport
         ]);
@@ -102,72 +165,84 @@ class ExchangeController extends Controller
         $request->validate([
             'invoiceNumber' => 'required|string',
             'amount' => 'required|numeric|min:0.01',
+            'currency' => 'nullable|string|in:iqd,usd',
             'description' => 'required|string|max:1000',
+            'exchangeType' => 'required|string|in:customer,general',
             'selectedCustomer' => 'nullable|array'
         ]);
 
         DB::beginTransaction();
 
         try {
-            // حساب الرصيد الحالي
-            $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
-            $currentNaqaBalance = $openingBalance ? $openingBalance->naqa : 0;
+            $currencyType = $request->currency ?: 'iqd';
+            $amount = $request->amount;
 
-            // حساب إجمالي المستلم
-            $totalReceived = \App\Models\ReceiveTransaction::where('user_id', $sessionUser['id'])
-                ->sum('amount_in_iqd');
+            // التحقق من رصيد الموظف حسب نوع العملة
+            $employeeCurrentBalance = $this->getEmployeeCurrentBalance($sessionUser['id'], $currencyType);
 
-            // حساب إجمالي المصروف
-            $totalExchanged = ExchangeTransaction::where('user_id', $sessionUser['id'])
-                ->sum('amount');
-
-            $previousBalance = $currentNaqaBalance + $totalReceived - $totalExchanged;
-            $newBalance = $previousBalance - $request->amount;
-
-            // التحقق من كفاية الرصيد
-            if ($newBalance < 0) {
+            if ($employeeCurrentBalance < $amount) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'الرصيد غير كافي لإجراء هذه العملية'
+                    'message' => 'رصيد الموظف غير كافي لإجراء هذه العملية' .
+                               ' (الرصيد الحالي: ' . number_format($employeeCurrentBalance, 2) .
+                               ' ' . strtoupper($currencyType) . ')'
                 ], 400);
             }
+
+            // إذا كان صرف لعميل، التحقق من رصيد العميل
+            if ($request->exchangeType === 'customer' && $request->selectedCustomer && isset($request->selectedCustomer['id'])) {
+                $customerId = $request->selectedCustomer['id'];
+
+                if (!$this->checkCustomerBalance($customerId, $amount, $currencyType)) {
+                    $customer = \App\Models\Customer::find($customerId);
+                    $customerBalance = $currencyType === 'usd'
+                        ? $customer->remaining_balance_usd
+                        : $customer->remaining_balance_iqd;
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'رصيد العميل غير كافي لإجراء هذه العملية' .
+                                   ' (الرصيد الحالي: ' . number_format($customerBalance, 2) .
+                                   ' ' . strtoupper($currencyType) . ')'
+                    ], 400);
+                }
+            }
+
+            // حساب الرصيد الجديد للموظف
+            $newEmployeeBalance = $employeeCurrentBalance - $amount;
 
             // Create transaction record
             $transaction = ExchangeTransaction::create([
                 'user_id' => $sessionUser['id'],
                 'invoice_number' => $request->invoiceNumber,
-                'amount' => $request->amount,
+                'amount' => $amount,
+                'currency_type' => $currencyType,
                 'description' => $request->description,
                 'paid_to' => $request->paidTo ?? null,
-                'previous_balance' => $previousBalance,
-                'new_balance' => $newBalance,
+                'previous_balance' => $employeeCurrentBalance,
+                'new_balance' => $newEmployeeBalance,
                 'entered_by' => $sessionUser['name'],
                 'notes' => $request->notes ?? null
             ]);
 
-            // إنشاء معاملة عميل إذا تم اختيار عميل
-            if ($request->selectedCustomer && isset($request->selectedCustomer['id'])) {
+            // إنشاء معاملة عميل فقط إذا كان نوع الصرف "لعميل"
+            if ($request->exchangeType === 'customer' && $request->selectedCustomer && isset($request->selectedCustomer['id'])) {
                 $customer = \App\Models\Customer::find($request->selectedCustomer['id']);
                 if ($customer) {
                     // تحديد نوع المعاملة (الصرافة دفعت للعميل)
-                    $transactionType = 'delivery'; // تسليم (الصرافة دفعت للعميل)
-
-                    // المبلغ بالدينار العراقي (سند الصرف دائماً بالدينار)
-                    $amountIqd = $request->amount;
-                    $amountUsd = 0;
+                    $transactionType = 'delivered'; // تسليم (الصرافة دفعت للعميل)
 
                     \App\Models\CustomerTransaction::create([
                         'customer_id' => $customer->id,
                         'user_id' => $sessionUser['id'],
                         'transaction_code' => \App\Models\CustomerTransaction::generateTransactionCode(),
-                        'type' => $transactionType,
-                        'amount_iqd' => $amountIqd,
-                        'amount_usd' => $amountUsd,
-                        'description' => 'سند صرف رقم: ' . $request->invoiceNumber . ' - ' . ($request->description ?: 'بدون وصف'),
-                        'reference_number' => $request->invoiceNumber,
-                        'currency' => 'دينار عراقي',
-                        'exchange_rate' => 1,
-                        'notes' => $request->notes
+                        'transaction_type' => $transactionType,
+                        'currency_type' => $currencyType,
+                        'amount' => $amount,
+                        'exchange_rate' => 1, // سعر الصرف 1 لأن المبلغ محدد بالعملة المطلوبة مباشرة
+                        'description' => 'سند صرف رقم: ' . $request->invoiceNumber . ' - ' . ($request->description ?: 'بدون وصف') . ' (' . strtoupper($currencyType) . ')',
+                        'notes' => $request->notes,
+                        'transaction_date' => now()
                     ]);
 
                     // إعادة حساب رصيد العميل
@@ -189,15 +264,22 @@ class ExchangeController extends Controller
             $updatedTotalExchanged = ExchangeTransaction::where('user_id', $sessionUser['id'])
                 ->sum('amount');
 
+            // حساب الأرصدة المحدثة
+            $updatedIqdBalance = $this->getEmployeeCurrentBalance($sessionUser['id'], 'iqd');
+            $updatedUsdBalance = $this->getEmployeeCurrentBalance($sessionUser['id'], 'usd');
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم إجراء عملية الصرف بنجاح',
                 'transaction' => $transaction,
-                'new_balance' => $newBalance,
+                'new_balance' => $newEmployeeBalance,
+                'currency_type' => $currencyType,
                 'updated_report' => [
                     'exchanged_today' => $updatedExchangedToday,
                     'operations' => $updatedOperations,
-                    'total_exchanged' => $updatedTotalExchanged
+                    'total_exchanged' => $updatedTotalExchanged,
+                    'current_iqd_balance' => $updatedIqdBalance,
+                    'current_usd_balance' => $updatedUsdBalance
                 ]
             ]);
 

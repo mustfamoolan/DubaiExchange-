@@ -92,11 +92,16 @@ class CustomerController extends Controller
             ->limit(10)
             ->get()
             ->map(function ($customer) {
+                // تحديث الأرصدة الحالية قبل الإرجاع
+                $customer->updateBalances();
+
                 return [
                     'id' => $customer->id,
                     'customer_code' => $customer->customer_code,
                     'name' => $customer->name,
                     'phone' => $customer->phone,
+                    'current_iqd_balance' => $customer->current_iqd_balance,
+                    'current_usd_balance' => $customer->current_usd_balance,
                     'remaining_balance' => $customer->remaining_balance
                 ];
             });
@@ -242,13 +247,16 @@ class CustomerController extends Controller
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($customer) {
+                // تحديث الأرصدة الحالية قبل الإرجاع
+                $customer->updateBalances();
+
                 return [
                     'id' => $customer->id,
                     'customer_code' => $customer->customer_code,
                     'name' => $customer->name,
                     'phone' => $customer->phone,
-                    'remaining_balance_iqd' => $customer->remaining_balance_iqd,
-                    'remaining_balance_usd' => $customer->remaining_balance_usd,
+                    'current_iqd_balance' => $customer->current_iqd_balance ?? 0,
+                    'current_usd_balance' => $customer->current_usd_balance ?? 0,
                     'created_at' => $customer->created_at->format('Y-m-d'),
                 ];
             });
@@ -265,30 +273,58 @@ class CustomerController extends Controller
     public function apiStore(Request $request)
     {
         try {
+            // تسجيل البيانات المستلمة للتشخيص
+            \Log::info('API Store Customer Request:', $request->all());
+
+            // التحقق من وجود العميل مسبقاً
+            $existingCustomer = Customer::where('phone', $request->phone)->first();
+            if ($existingCustomer) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'رقم الهاتف موجود مسبقاً للعميل: ' . $existingCustomer->name
+                ], 422);
+            }
+
             $request->validate([
                 'name' => 'required|string|max:255',
-                'phone' => 'required|string|unique:customers,phone|regex:/^07[0-9]{9}$/',
-                'opening_balance_iqd' => 'required|numeric',
-                'opening_balance_usd' => 'required|numeric',
+                'phone' => 'required|string',
+                'opening_balance_iqd' => 'nullable|numeric',
+                'opening_balance_usd' => 'nullable|numeric',
             ], [
                 'name.required' => 'اسم العميل مطلوب',
+                'name.max' => 'اسم العميل يجب أن يكون أقل من 255 حرف',
                 'phone.required' => 'رقم الهاتف مطلوب',
-                'phone.unique' => 'رقم الهاتف موجود مسبقاً',
-                'phone.regex' => 'رقم الهاتف يجب أن يبدأ بـ 07 ويحتوي على 11 رقم',
-                'opening_balance_iqd.required' => 'الرصيد الافتتاحي بالدينار العراقي مطلوب',
-                'opening_balance_usd.required' => 'الرصيد الافتتاحي بالدولار مطلوب',
+                'opening_balance_iqd.numeric' => 'الرصيد الافتتاحي بالدينار العراقي يجب أن يكون رقم',
+                'opening_balance_usd.numeric' => 'الرصيد الافتتاحي بالدولار يجب أن يكون رقم',
+            ]);
+
+            // تحضير البيانات
+            $iqd_balance = floatval($request->opening_balance_iqd ?: 0);
+            $usd_balance = floatval($request->opening_balance_usd ?: 0);
+
+            \Log::info('Creating customer with data:', [
+                'name' => $request->name,
+                'phone' => $request->phone,
+                'iqd_balance' => $iqd_balance,
+                'usd_balance' => $usd_balance
             ]);
 
             $customer = Customer::create([
                 'customer_code' => Customer::generateCustomerCode(),
                 'name' => $request->name,
                 'phone' => $request->phone,
-                'iqd_opening_balance' => $request->opening_balance_iqd,
-                'usd_opening_balance' => $request->opening_balance_usd,
-                'current_iqd_balance' => $request->opening_balance_iqd,
-                'current_usd_balance' => $request->opening_balance_usd,
+                'iqd_opening_balance' => $iqd_balance,
+                'usd_opening_balance' => $usd_balance,
+                'current_iqd_balance' => $iqd_balance,
+                'current_usd_balance' => $usd_balance,
                 'is_active' => true
             ]);
+
+            // تسجيل نجاح العملية
+            \Log::info('Customer created successfully:', ['customer_id' => $customer->id]);
+
+            // إعادة تحميل العميل للحصول على البيانات المحدثة
+            $customer->refresh();
 
             // تحديث الكائن ليشمل البيانات المطلوبة للواجهة
             $customerData = [
@@ -296,8 +332,8 @@ class CustomerController extends Controller
                 'customer_code' => $customer->customer_code,
                 'name' => $customer->name,
                 'phone' => $customer->phone,
-                'remaining_balance_iqd' => $customer->remaining_balance_iqd,
-                'remaining_balance_usd' => $customer->remaining_balance_usd,
+                'remaining_balance_iqd' => $customer->current_iqd_balance ?? $iqd_balance,
+                'remaining_balance_usd' => $customer->current_usd_balance ?? $usd_balance,
                 'created_at' => $customer->created_at->format('Y-m-d'),
             ];
 
@@ -308,12 +344,21 @@ class CustomerController extends Controller
             ], 201);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
+            \Log::error('Validation Error:', [
+                'errors' => $e->errors(),
+                'request_data' => $request->all()
+            ]);
+
+            // إرجاع الخطأ الأول فقط لتسهيل الفهم
+            $firstError = collect($e->errors())->flatten()->first();
+
             return response()->json([
                 'success' => false,
-                'message' => 'خطأ في البيانات المدخلة',
+                'message' => $firstError,
                 'errors' => $e->errors()
             ], 422);
         } catch (\Exception $e) {
+            \Log::error('Customer Creation Error:', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return response()->json([
                 'success' => false,
                 'message' => 'حدث خطأ غير متوقع: ' . $e->getMessage()

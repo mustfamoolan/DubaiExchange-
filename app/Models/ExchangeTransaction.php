@@ -13,6 +13,7 @@ class ExchangeTransaction extends Model
         'user_id',
         'invoice_number',
         'amount',
+        'currency_type',
         'description',
         'paid_to',
         'previous_balance',

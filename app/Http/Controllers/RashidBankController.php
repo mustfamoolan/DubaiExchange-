@@ -49,8 +49,22 @@ class RashidBankController extends Controller
             return $sessionUser;
         }
 
-        // Get user's opening balance for Rashid Bank
+        // الحصول على الرصيد الافتتاحي النقدي
         $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
+        $currentNaqaBalance = $openingBalance ? $openingBalance->naqa : 0;
+
+        // حساب إجمالي المستلم (من سندات القبض)
+        $totalReceived = \App\Models\ReceiveTransaction::where('user_id', $sessionUser['id'])
+            ->sum('amount_in_iqd');
+
+        // حساب إجمالي المصروف (من سندات الصرف)
+        $totalExchanged = \App\Models\ExchangeTransaction::where('user_id', $sessionUser['id'])
+            ->sum('amount');
+
+        // حساب الرصيد النقدي الحالي (مثل سند القبض والصرف)
+        $currentCashBalance = $currentNaqaBalance + $totalReceived - $totalExchanged;
+
+        // Get user's opening balance for Rashid Bank
         $rashidBalance = $openingBalance ? $openingBalance->rashid : 0;
 
         // Calculate current balance based on transactions
@@ -78,6 +92,7 @@ class RashidBankController extends Controller
         return Inertia::render('Employee/RashidBank', [
             'user' => $sessionUser,
             'currentBalance' => $currentBalance,
+            'currentCashBalance' => $currentCashBalance,
             'transactions' => $transactions,
             'openingBalance' => $rashidBalance,
             'quickReport' => [
@@ -122,7 +137,13 @@ class RashidBankController extends Controller
             $amount = $request->amount;
             $commission = $request->commission ?? RashidTransaction::calculateCommission($amount, 'charge');
             $totalWithCommission = $amount + $commission;
-            $newBalance = $previousBalance - $amount; // نقص المبلغ فقط من الرصيد للشحن
+            $newBalance = $previousBalance - $amount; // نقص المبلغ فقط من رصيد الرشيد
+
+            // إضافة العمولة للرصيد النقدي في opening_balances
+            if ($openingBalance) {
+                $openingBalance->naqa += $commission; // إضافة العمولة للرصيد النقدي
+                $openingBalance->save();
+            }
 
             // Create transaction record
             $transaction = RashidTransaction::create([
@@ -152,11 +173,19 @@ class RashidBankController extends Controller
 
             $updatedTotalOperations = RashidTransaction::where('user_id', $sessionUser['id'])->count();
 
+            // حساب الرصيد النقدي المحدث (مثل سند القبض والصرف)
+            $updatedOpeningBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
+            $updatedNaqaBalance = $updatedOpeningBalance ? $updatedOpeningBalance->naqa : 0;
+            $updatedTotalReceived = \App\Models\ReceiveTransaction::where('user_id', $sessionUser['id'])->sum('amount_in_iqd');
+            $updatedTotalExchanged = \App\Models\ExchangeTransaction::where('user_id', $sessionUser['id'])->sum('amount');
+            $updatedCashBalance = $updatedNaqaBalance + $updatedTotalReceived - $updatedTotalExchanged;
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم إجراء عملية الشحن بنجاح',
                 'transaction' => $transaction,
                 'new_balance' => $newBalance,
+                'new_cash_balance' => $updatedCashBalance,
                 'updated_report' => [
                     'charges' => $updatedTotalCharges,
                     'payments' => $updatedTotalPayments,
@@ -208,15 +237,27 @@ class RashidBankController extends Controller
             $commission = $request->commission ?? RashidTransaction::calculateCommission($amount, 'payment');
             $totalWithCommission = $amount + $commission;
 
-            // Check if user has sufficient balance (فقط للمبلغ الأساسي)
-            if ($previousBalance < $amount) {
+            // التحقق من كفاية الرصيد النقدي الحالي للتأثير الصافي (المبلغ - العمولة)
+            $currentOpeningNaqa = $openingBalance ? $openingBalance->naqa : 0;
+            $currentTotalReceived = \App\Models\ReceiveTransaction::where('user_id', $sessionUser['id'])->sum('amount_in_iqd');
+            $currentTotalExchanged = \App\Models\ExchangeTransaction::where('user_id', $sessionUser['id'])->sum('amount');
+            $currentCashBalance = $currentOpeningNaqa + $currentTotalReceived - $currentTotalExchanged;
+            $netAmountFromCash = $amount - $commission; // التأثير الصافي على الرصيد النقدي
+
+            if ($currentCashBalance < $netAmountFromCash) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'الرصيد غير كافي لإجراء هذه العملية'
+                    'message' => 'الرصيد النقدي غير كافي لإجراء هذه العملية (المبلغ المطلوب: ' . number_format($netAmountFromCash) . ' د.ع)'
                 ], 400);
             }
 
-            $newBalance = $previousBalance + $amount; // زيادة المبلغ فقط إلى الرصيد للدفع
+            $newBalance = $previousBalance + $amount; // زيادة المبلغ إلى رصيد الرشيد
+
+            // تحديث الرصيد النقدي: ننقص المبلغ ونضيف العمولة
+            if ($openingBalance) {
+                $openingBalance->naqa = $openingBalance->naqa - $amount + $commission;
+                $openingBalance->save();
+            }
 
             // Create transaction record
             $transaction = RashidTransaction::create([
@@ -246,11 +287,19 @@ class RashidBankController extends Controller
 
             $updatedTotalOperations = RashidTransaction::where('user_id', $sessionUser['id'])->count();
 
+            // حساب الرصيد النقدي المحدث (مثل سند القبض والصرف)
+            $updatedOpeningBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
+            $updatedNaqaBalance = $updatedOpeningBalance ? $updatedOpeningBalance->naqa : 0;
+            $updatedTotalReceived = \App\Models\ReceiveTransaction::where('user_id', $sessionUser['id'])->sum('amount_in_iqd');
+            $updatedTotalExchanged = \App\Models\ExchangeTransaction::where('user_id', $sessionUser['id'])->sum('amount');
+            $updatedCashBalance = $updatedNaqaBalance + $updatedTotalReceived - $updatedTotalExchanged;
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم إجراء عملية الدفع بنجاح',
                 'transaction' => $transaction,
                 'new_balance' => $newBalance,
+                'new_cash_balance' => $updatedCashBalance,
                 'updated_report' => [
                     'charges' => $updatedTotalCharges,
                     'payments' => $updatedTotalPayments,

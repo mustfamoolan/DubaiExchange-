@@ -52,6 +52,7 @@ class ReceiveController extends Controller
         // الحصول على الرصيد الافتتاحي النقدي
         $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
         $currentNaqaBalance = $openingBalance ? $openingBalance->naqa : 0;
+        $currentUsdBalance = $openingBalance ? $openingBalance->usd_cash : 0;
 
         // حساب إجمالي المستلم (من سندات القبض)
         $totalReceived = ReceiveTransaction::where('user_id', $sessionUser['id'])
@@ -88,6 +89,7 @@ class ReceiveController extends Controller
         return Inertia::render('Employee/Receive', [
             'user' => $sessionUser,
             'currentBalance' => $currentBalance,
+            'currentUsdBalance' => $currentUsdBalance,
             'openingBalance' => $currentNaqaBalance,
             'transactions' => $transactions,
             'quickReport' => $quickReport
@@ -108,7 +110,7 @@ class ReceiveController extends Controller
             'selectedCustomer' => 'nullable|array',
             'amount' => 'required|numeric|min:0.01',
             'currency' => 'required|string|max:100',
-            'exchange_rate' => 'required|numeric|min:0.01',
+            'exchange_rate' => 'nullable|numeric|min:0.01',
             'description' => 'nullable|string|max:1000',
             'beneficiary' => 'required|string|max:255',
             'notes' => 'nullable|string|max:1000'
@@ -133,9 +135,23 @@ class ReceiveController extends Controller
             $currentBalance = $currentNaqaBalance + $totalReceived - $totalExchanged;
 
             // حساب المبلغ بالدينار العراقي
-            $amountInIqd = $request->amount * $request->exchange_rate;
+            $exchangeRate = $request->exchange_rate ?: 1; // استخدام 1 كافتراضي
 
-            $newBalance = $currentBalance + $amountInIqd;
+            if ($request->currency === 'دولار أمريكي') {
+                // إذا كانت العملة دولار، المبلغ يبقى كما هو (لا نضربه في سعر الصرف)
+                $amountInIqd = $request->amount; // نحفظ القيمة بالدولار
+            } else {
+                // إذا كانت أي عملة أخرى، نضربها في سعر الصرف
+                $amountInIqd = $request->amount * $exchangeRate;
+            }
+
+            $newBalance = $currentBalance + ($request->currency === 'دولار أمريكي' ? 0 : $amountInIqd);
+
+            // إذا كانت العملة دولار، نضيف إلى الرصيد الحالي للدولار
+            if ($request->currency === 'دولار أمريكي' && $openingBalance) {
+                $openingBalance->usd_cash += $request->amount;
+                $openingBalance->save();
+            }
 
             // Create transaction record
             $transaction = ReceiveTransaction::create([
@@ -144,7 +160,7 @@ class ReceiveController extends Controller
                 'received_from' => $request->receivedFrom,
                 'amount' => $request->amount,
                 'currency' => $request->currency,
-                'exchange_rate' => $request->exchange_rate,
+                'exchange_rate' => $exchangeRate,
                 'amount_in_iqd' => $amountInIqd,
                 'description' => $request->description,
                 'beneficiary' => $request->beneficiary,
@@ -160,33 +176,27 @@ class ReceiveController extends Controller
                 $customer = \App\Models\Customer::find($request->selectedCustomer['id']);
                 if ($customer) {
                     // تحديد نوع المعاملة والعملة
-                    $transactionType = 'payment'; // دفع (العميل دفع للصرافة)
+                    $transactionType = 'received'; // استلم من العميل
+                    $currencyType = 'iqd'; // افتراضياً دينار عراقي
+                    $finalAmount = $amountInIqd; // المبلغ بالدينار العراقي
 
-                    // تحديد المبلغ حسب العملة
-                    $amountIqd = 0;
-                    $amountUsd = 0;
-
-                    if ($request->currency === 'دينار عراقي') {
-                        $amountIqd = $request->amount;
-                    } elseif ($request->currency === 'دولار أمريكي') {
-                        $amountUsd = $request->amount;
-                    } else {
-                        // للعملات الأخرى، تحويل إلى دينار عراقي
-                        $amountIqd = $amountInIqd;
+                    // تحديد نوع العملة والمبلغ النهائي
+                    if ($request->currency === 'دولار أمريكي') {
+                        $currencyType = 'usd';
+                        $finalAmount = $request->amount; // المبلغ الأصلي بالدولار
                     }
 
                     \App\Models\CustomerTransaction::create([
                         'customer_id' => $customer->id,
                         'user_id' => $sessionUser['id'],
                         'transaction_code' => \App\Models\CustomerTransaction::generateTransactionCode(),
-                        'type' => $transactionType,
-                        'amount_iqd' => $amountIqd,
-                        'amount_usd' => $amountUsd,
+                        'transaction_type' => $transactionType,
+                        'currency_type' => $currencyType,
+                        'amount' => $finalAmount,
+                        'exchange_rate' => $exchangeRate,
                         'description' => 'سند قبض رقم: ' . $request->documentNumber . ' - ' . ($request->description ?: 'بدون وصف'),
-                        'reference_number' => $request->documentNumber,
-                        'currency' => $request->currency,
-                        'exchange_rate' => $request->exchange_rate,
-                        'notes' => $request->notes
+                        'notes' => $request->notes,
+                        'transaction_date' => now()
                     ]);
 
                     // إعادة حساب رصيد العميل
@@ -211,11 +221,16 @@ class ReceiveController extends Controller
             $updatedTotalExchanged = \App\Models\ExchangeTransaction::where('user_id', $sessionUser['id'])
                 ->sum('amount');
 
+            // الحصول على الرصيد المحدث للدولار
+            $updatedOpeningBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
+            $updatedUsdBalance = $updatedOpeningBalance ? $updatedOpeningBalance->usd_cash : 0;
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم حفظ سند القبض بنجاح',
                 'transaction' => $transaction,
                 'new_balance' => $newBalance,
+                'new_usd_balance' => $updatedUsdBalance,
                 'updated_report' => [
                     'received_today' => $updatedTodayReceived,
                     'operations' => $updatedOperations,

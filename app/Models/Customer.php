@@ -105,6 +105,28 @@ class Customer extends Model
     }
 
     /**
+     * حساب الرصيد المتبقي بالدينار العراقي
+     */
+    public function getRemainingBalanceIqdAttribute()
+    {
+        $received = $this->total_received;
+        $delivered = $this->total_delivered;
+
+        return $this->iqd_opening_balance + $received['iqd'] - $delivered['iqd'];
+    }
+
+    /**
+     * حساب الرصيد المتبقي بالدولار الأمريكي
+     */
+    public function getRemainingBalanceUsdAttribute()
+    {
+        $received = $this->total_received;
+        $delivered = $this->total_delivered;
+
+        return $this->usd_opening_balance + $received['usd'] - $delivered['usd'];
+    }
+
+    /**
      * تحديث أرصدة العميل
      */
     public function updateBalances()
