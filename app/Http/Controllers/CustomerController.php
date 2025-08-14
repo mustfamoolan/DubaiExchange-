@@ -47,8 +47,8 @@ class CustomerController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|string|unique:customers,phone|regex:/^07[0-9]{9}$/',
-            'iqd_opening_balance' => 'required|numeric|min:0',
-            'usd_opening_balance' => 'required|numeric|min:0',
+            'iqd_opening_balance' => 'required|numeric',
+            'usd_opening_balance' => 'required|numeric',
             'notes' => 'nullable|string|max:1000'
         ], [
             'name.required' => 'اسم العميل مطلوب',
@@ -57,10 +57,8 @@ class CustomerController extends Controller
             'phone.regex' => 'رقم الهاتف يجب أن يبدأ بـ 07 ويكون 11 رقم',
             'iqd_opening_balance.required' => 'الرصيد الافتتاحي دينار مطلوب',
             'iqd_opening_balance.numeric' => 'الرصيد الافتتاحي دينار يجب أن يكون رقم',
-            'iqd_opening_balance.min' => 'الرصيد الافتتاحي دينار يجب أن يكون أكبر من أو يساوي صفر',
             'usd_opening_balance.required' => 'الرصيد الافتتاحي دولار مطلوب',
             'usd_opening_balance.numeric' => 'الرصيد الافتتاحي دولار يجب أن يكون رقم',
-            'usd_opening_balance.min' => 'الرصيد الافتتاحي دولار يجب أن يكون أكبر من أو يساوي صفر',
         ]);
 
         $customer = Customer::create([
@@ -164,8 +162,8 @@ class CustomerController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|string|regex:/^07[0-9]{9}$/|unique:customers,phone,' . $customer->id,
-            'iqd_opening_balance' => 'required|numeric|min:0',
-            'usd_opening_balance' => 'required|numeric|min:0',
+            'iqd_opening_balance' => 'required|numeric',
+            'usd_opening_balance' => 'required|numeric',
             'notes' => 'nullable|string|max:1000'
         ], [
             'name.required' => 'اسم العميل مطلوب',
@@ -174,10 +172,8 @@ class CustomerController extends Controller
             'phone.regex' => 'رقم الهاتف يجب أن يبدأ بـ 07 ويكون 11 رقم',
             'iqd_opening_balance.required' => 'الرصيد الافتتاحي دينار مطلوب',
             'iqd_opening_balance.numeric' => 'الرصيد الافتتاحي دينار يجب أن يكون رقم',
-            'iqd_opening_balance.min' => 'الرصيد الافتتاحي دينار يجب أن يكون أكبر من أو يساوي صفر',
             'usd_opening_balance.required' => 'الرصيد الافتتاحي دولار مطلوب',
             'usd_opening_balance.numeric' => 'الرصيد الافتتاحي دولار يجب أن يكون رقم',
-            'usd_opening_balance.min' => 'الرصيد الافتتاحي دولار يجب أن يكون أكبر من أو يساوي صفر',
         ]);
 
         $customer->update([

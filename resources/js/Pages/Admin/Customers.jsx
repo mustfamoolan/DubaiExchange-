@@ -304,12 +304,11 @@ export default function Customers({ customers: initialCustomers = [] }) {
                                     <input
                                         type="number"
                                         step="0.01"
-                                        min="0"
                                         required
                                         value={data.iqd_opening_balance}
                                         onChange={(e) => setData('iqd_opening_balance', e.target.value)}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
-                                        placeholder="0.00"
+                                        placeholder="0.00 (يمكن أن يكون سالب)"
                                     />
                                     {errors.iqd_opening_balance && (
                                         <p className="mt-1 text-sm text-red-600">{errors.iqd_opening_balance}</p>
@@ -324,12 +323,11 @@ export default function Customers({ customers: initialCustomers = [] }) {
                                     <input
                                         type="number"
                                         step="0.01"
-                                        min="0"
                                         required
                                         value={data.usd_opening_balance}
                                         onChange={(e) => setData('usd_opening_balance', e.target.value)}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
-                                        placeholder="0.00"
+                                        placeholder="0.00 (يمكن أن يكون سالب)"
                                     />
                                     {errors.usd_opening_balance && (
                                         <p className="mt-1 text-sm text-red-600">{errors.usd_opening_balance}</p>
@@ -426,12 +424,11 @@ export default function Customers({ customers: initialCustomers = [] }) {
                                     <input
                                         type="number"
                                         step="0.01"
-                                        min="0"
                                         required
                                         value={editData.iqd_opening_balance}
                                         onChange={(e) => setEditData('iqd_opening_balance', e.target.value)}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
-                                        placeholder="0.00"
+                                        placeholder="0.00 (يمكن أن يكون سالب)"
                                     />
                                     {editErrors.iqd_opening_balance && (
                                         <p className="mt-1 text-sm text-red-600">{editErrors.iqd_opening_balance}</p>
@@ -446,12 +443,11 @@ export default function Customers({ customers: initialCustomers = [] }) {
                                     <input
                                         type="number"
                                         step="0.01"
-                                        min="0"
                                         required
                                         value={editData.usd_opening_balance}
                                         onChange={(e) => setEditData('usd_opening_balance', e.target.value)}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
-                                        placeholder="0.00"
+                                        placeholder="0.00 (يمكن أن يكون سالب)"
                                     />
                                     {editErrors.usd_opening_balance && (
                                         <p className="mt-1 text-sm text-red-600">{editErrors.usd_opening_balance}</p>
