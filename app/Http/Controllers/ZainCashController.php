@@ -139,9 +139,9 @@ class ZainCashController extends Controller
             $totalWithCommission = $amount + $commission;
             $newBalance = $previousBalance - $amount; // نقص المبلغ فقط من رصيد زين كاش
 
-            // إضافة العمولة للرصيد النقدي في opening_balances
+            // إضافة المبلغ + العمولة للرصيد النقدي في opening_balances
             if ($openingBalance) {
-                $openingBalance->naqa += $commission; // إضافة العمولة للرصيد النقدي
+                $openingBalance->naqa += ($amount + $commission); // إضافة المبلغ + العمولة للرصيد النقدي
                 $openingBalance->save();
             }
 

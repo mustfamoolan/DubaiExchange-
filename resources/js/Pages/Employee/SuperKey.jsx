@@ -263,7 +263,7 @@ export default function SuperKey({ user, currentBalance = 0, currentCashBalance 
 
                             {/* عرض الرصيد */}
                             <div className="bg-yellow-50 rounded-xl p-6 mb-4">
-                                <h3 className="text-lg font-semibold text-yellow-800 mb-2">الرصيد المتبقي</h3>
+                                <h3 className="text-lg font-semibold text-yellow-800 mb-2">الرصيد المتبقي لسوبر كي</h3>
                                 <p className="text-3xl font-bold text-yellow-700">
                                     {Math.floor(balance).toLocaleString()} د.ع
                                 </p>
@@ -563,7 +563,7 @@ export default function SuperKey({ user, currentBalance = 0, currentCashBalance 
                                             <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3">
                                                 <span className="text-2xl">💰</span>
                                             </div>
-                                            <h4 className="text-sm font-semibold text-yellow-700 mb-2">الرصيد المتبقي</h4>
+                                            <h4 className="text-sm font-semibold text-yellow-700 mb-2">الرصيد المتبقي لسوبر كي</h4>
                                             <p className="text-2xl font-bold text-yellow-800">
                                                 {detailedReportData ? Math.floor(detailedReportData.current_balance).toLocaleString() : Math.floor(balance).toLocaleString()}
                                             </p>

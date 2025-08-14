@@ -294,7 +294,7 @@ export default function ZainCash({ user, currentBalance = 0, currentCashBalance 
                             {/* عرض الرصيد */}
                             <div className="space-y-4 mb-6">
                                 <div className="bg-purple-50 rounded-xl p-6">
-                                    <h3 className="text-lg font-semibold text-purple-800 mb-2">الرصيد المتبقي</h3>
+                                    <h3 className="text-lg font-semibold text-purple-800 mb-2">الرصيد المتبقي لزين كاش</h3>
                                     <p className="text-3xl font-bold text-purple-700">
                                         {Math.floor(balance).toLocaleString()} د.ع
                                     </p>

@@ -267,7 +267,7 @@ export default function RashidBank({ user, currentBalance = 0, currentCashBalanc
 
                             {/* عرض الرصيد */}
                             <div className="bg-blue-50 rounded-xl p-6 mb-4">
-                                <h3 className="text-lg font-semibold text-blue-800 mb-2">الرصيد المتبقي</h3>
+                                <h3 className="text-lg font-semibold text-blue-800 mb-2">الرصيد المتبقي لمصرف الرشيد</h3>
                                 <p className="text-3xl font-bold text-blue-700">
                                     {Math.floor(balance).toLocaleString()} د.ع
                                 </p>
@@ -567,7 +567,7 @@ export default function RashidBank({ user, currentBalance = 0, currentCashBalanc
                                             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                                                 <span className="text-2xl">💰</span>
                                             </div>
-                                            <h4 className="text-sm font-semibold text-blue-700 mb-2">الرصيد المتبقي</h4>
+                                            <h4 className="text-sm font-semibold text-blue-700 mb-2">الرصيد المتبقي لمصرف الرشيد</h4>
                                             <p className="text-2xl font-bold text-blue-800">
                                                 {detailedReportData ? Math.floor(detailedReportData.current_balance).toLocaleString() : Math.floor(balance).toLocaleString()}
                                             </p>
