@@ -647,11 +647,9 @@ export default function Receive({
 
     // حساب ما إذا كان النموذج صالحاً للإرسال
     const isFormValid = () => {
-        const isExchangeRateRequired = formData.currency !== 'دينار عراقي';
         return formData.receivedFrom &&
                formData.amount &&
-               formData.currency &&
-               (!isExchangeRateRequired || formData.exchange_rate);
+               formData.currency;
     };
 
     return (
