@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\OpeningBalanceController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\RafidainBankController;
@@ -150,8 +151,50 @@ Route::prefix('admin')->group(function () {
         if (!session('logged_in') || session('user_type') !== 'admin') {
             return redirect()->route('login');
         }
-        return Inertia::render('Admin/Customers');
+        return app(App\Http\Controllers\CustomerController::class)->index();
     })->name('admin.customers');
+
+    Route::post('/customers', function () {
+        if (!session('logged_in') || session('user_type') !== 'admin') {
+            return redirect()->route('login');
+        }
+        return app(App\Http\Controllers\CustomerController::class)->store(request());
+    })->name('admin.customers.store');
+
+    Route::get('/customers/search', function () {
+        if (!session('logged_in') || session('user_type') !== 'admin') {
+            return redirect()->route('login');
+        }
+        return app(App\Http\Controllers\CustomerController::class)->search(request());
+    })->name('admin.customers.search');
+
+    Route::get('/customers/{id}', function ($id) {
+        if (!session('logged_in') || session('user_type') !== 'admin') {
+            return redirect()->route('login');
+        }
+        return app(App\Http\Controllers\CustomerController::class)->show($id);
+    })->name('admin.customers.show');
+
+    Route::put('/customers/{id}', function ($id) {
+        if (!session('logged_in') || session('user_type') !== 'admin') {
+            return redirect()->route('login');
+        }
+        return app(App\Http\Controllers\CustomerController::class)->update(request(), $id);
+    })->name('admin.customers.update');
+
+    Route::patch('/customers/{id}/toggle-status', function ($id) {
+        if (!session('logged_in') || session('user_type') !== 'admin') {
+            return redirect()->route('login');
+        }
+        return app(App\Http\Controllers\CustomerController::class)->toggleStatus($id);
+    })->name('admin.customers.toggle');
+
+    Route::delete('/customers/{id}', function ($id) {
+        if (!session('logged_in') || session('user_type') !== 'admin') {
+            return redirect()->route('login');
+        }
+        return app(App\Http\Controllers\CustomerController::class)->destroy($id);
+    })->name('admin.customers.delete');
 
     Route::get('/transaction-log', function () {
         // التحقق من تسجيل الدخول
