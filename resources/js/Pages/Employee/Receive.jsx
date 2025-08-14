@@ -422,12 +422,20 @@ export default function Receive({
             setFormData(prev => ({
                 ...prev,
                 receivedFrom: '',
+                selectedCustomer: null,
                 amount: '',
                 currency: '',
                 description: '',
                 notes: '',
                 currentTime: new Date().toLocaleString('ar-EG')
             }));
+
+            // إعادة تعيين البحث عن العملاء
+            setSearchQuery('');
+            setShowCustomerDropdown(false);
+
+            // إعادة جلب العملاء لتحديث الأرصدة
+            await fetchCustomers();
 
             // توليد رقم مرجع جديد
             const now = new Date();
@@ -529,12 +537,20 @@ export default function Receive({
                 setFormData(prev => ({
                     ...prev,
                     receivedFrom: '',
+                    selectedCustomer: null,
                     amount: '',
                     currency: '',
                     description: '',
                     notes: '',
                     currentTime: new Date().toLocaleString('ar-EG')
                 }));
+
+                // إعادة تعيين البحث عن العملاء
+                setSearchQuery('');
+                setShowCustomerDropdown(false);
+
+                // إعادة جلب العملاء لتحديث الأرصدة
+                await fetchCustomers();
 
                 // توليد رقم مرجع جديد
                 const now = new Date();

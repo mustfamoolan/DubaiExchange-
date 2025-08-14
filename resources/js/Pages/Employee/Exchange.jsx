@@ -438,9 +438,17 @@ export default function Exchange({
                 amount: '',
                 description: '',
                 paidTo: '',
+                selectedCustomer: null,
                 notes: '',
                 currentTime: new Date().toLocaleString('ar-EG')
             }));
+
+            // إعادة تعيين بيانات البحث
+            setSearchQuery('');
+            setShowCustomerDropdown(false);
+
+            // إعادة جلب العملاء لتحديث الأرصدة
+            await fetchCustomers();
 
             // توليد رقم مرجع جديد
             const now = new Date();
@@ -533,6 +541,9 @@ export default function Exchange({
                 // إعادة تعيين بيانات البحث
                 setSearchQuery('');
                 setShowCustomerDropdown(false);
+
+                // إعادة جلب العملاء لتحديث الأرصدة
+                await fetchCustomers();
 
                 // توليد رقم مرجع جديد
                 const now = new Date();
