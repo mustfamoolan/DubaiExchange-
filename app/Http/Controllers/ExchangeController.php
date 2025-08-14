@@ -180,35 +180,12 @@ class ExchangeController extends Controller
             // التحقق من رصيد الموظف حسب نوع العملة
             $employeeCurrentBalance = $this->getEmployeeCurrentBalance($sessionUser['id'], $currencyType);
 
-            if ($employeeCurrentBalance < $amount) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'رصيد الموظف غير كافي لإجراء هذه العملية' .
-                               ' (الرصيد الحالي: ' . number_format($employeeCurrentBalance, 2) .
-                               ' ' . strtoupper($currencyType) . ')'
-                ], 400);
-            }
+            // تم إزالة التحقق من كفاية الرصيد للسماح بالسحب على المكشوف
 
-            // إذا كان صرف لعميل، التحقق من رصيد العميل
-            if ($request->exchangeType === 'customer' && $request->selectedCustomer && isset($request->selectedCustomer['id'])) {
-                $customerId = $request->selectedCustomer['id'];
+            // إذا كان صرف لعميل، يتم السماح بالسحب على المكشوف أيضاً
+            // (تم إزالة التحقق من رصيد العميل)
 
-                if (!$this->checkCustomerBalance($customerId, $amount, $currencyType)) {
-                    $customer = \App\Models\Customer::find($customerId);
-                    $customerBalance = $currencyType === 'usd'
-                        ? $customer->remaining_balance_usd
-                        : $customer->remaining_balance_iqd;
-
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'رصيد العميل غير كافي لإجراء هذه العملية' .
-                                   ' (الرصيد الحالي: ' . number_format($customerBalance, 2) .
-                                   ' ' . strtoupper($currencyType) . ')'
-                    ], 400);
-                }
-            }
-
-            // حساب الرصيد الجديد للموظف
+            // حساب الرصيد الجديد للموظف (يمكن أن يصبح سالباً)
             $newEmployeeBalance = $employeeCurrentBalance - $amount;
 
             // Create transaction record
