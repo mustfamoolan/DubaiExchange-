@@ -123,6 +123,20 @@ Route::prefix('admin')->group(function () {
         return app(UserController::class)->show($id);
     })->name('admin.employees.details');
 
+    Route::put('/employees/{id}', function ($id) {
+        if (!session('logged_in') || session('user_type') !== 'admin') {
+            return redirect()->route('login');
+        }
+        return app(UserController::class)->update(request(), $id);
+    })->name('admin.employees.update');
+
+    Route::delete('/employees/{id}', function ($id) {
+        if (!session('logged_in') || session('user_type') !== 'admin') {
+            return redirect()->route('login');
+        }
+        return app(UserController::class)->destroy($id);
+    })->name('admin.employees.delete');
+
     Route::get('/operations', function () {
         // التحقق من تسجيل الدخول
         if (!session('logged_in') || session('user_type') !== 'admin') {
