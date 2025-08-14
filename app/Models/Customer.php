@@ -103,4 +103,18 @@ class Customer extends Model
             'usd' => $this->usd_opening_balance + $received['usd'] - $delivered['usd']
         ];
     }
+
+    /**
+     * تحديث أرصدة العميل
+     */
+    public function updateBalances()
+    {
+        $received = $this->total_received;
+        $delivered = $this->total_delivered;
+
+        $this->update([
+            'current_iqd_balance' => $this->iqd_opening_balance + $received['iqd'] - $delivered['iqd'],
+            'current_usd_balance' => $this->usd_opening_balance + $received['usd'] - $delivered['usd']
+        ]);
+    }
 }

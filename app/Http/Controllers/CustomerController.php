@@ -232,4 +232,92 @@ class CustomerController extends Controller
             'current_usd_balance' => $customer->usd_opening_balance + $received['usd'] - $delivered['usd']
         ]);
     }
+
+    /**
+     * API: البحث في العملاء
+     */
+    public function apiSearch(Request $request)
+    {
+        $customers = Customer::where('is_active', true)
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($customer) {
+                return [
+                    'id' => $customer->id,
+                    'customer_code' => $customer->customer_code,
+                    'name' => $customer->name,
+                    'phone' => $customer->phone,
+                    'remaining_balance_iqd' => $customer->remaining_balance_iqd,
+                    'remaining_balance_usd' => $customer->remaining_balance_usd,
+                    'created_at' => $customer->created_at->format('Y-m-d'),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'customers' => $customers
+        ]);
+    }
+
+    /**
+     * API: إنشاء عميل جديد
+     */
+    public function apiStore(Request $request)
+    {
+        try {
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'phone' => 'required|string|unique:customers,phone|regex:/^07[0-9]{9}$/',
+                'opening_balance_iqd' => 'required|numeric',
+                'opening_balance_usd' => 'required|numeric',
+            ], [
+                'name.required' => 'اسم العميل مطلوب',
+                'phone.required' => 'رقم الهاتف مطلوب',
+                'phone.unique' => 'رقم الهاتف موجود مسبقاً',
+                'phone.regex' => 'رقم الهاتف يجب أن يبدأ بـ 07 ويحتوي على 11 رقم',
+                'opening_balance_iqd.required' => 'الرصيد الافتتاحي بالدينار العراقي مطلوب',
+                'opening_balance_usd.required' => 'الرصيد الافتتاحي بالدولار مطلوب',
+            ]);
+
+            $customer = Customer::create([
+                'customer_code' => Customer::generateCustomerCode(),
+                'name' => $request->name,
+                'phone' => $request->phone,
+                'iqd_opening_balance' => $request->opening_balance_iqd,
+                'usd_opening_balance' => $request->opening_balance_usd,
+                'current_iqd_balance' => $request->opening_balance_iqd,
+                'current_usd_balance' => $request->opening_balance_usd,
+                'is_active' => true
+            ]);
+
+            // تحديث الكائن ليشمل البيانات المطلوبة للواجهة
+            $customerData = [
+                'id' => $customer->id,
+                'customer_code' => $customer->customer_code,
+                'name' => $customer->name,
+                'phone' => $customer->phone,
+                'remaining_balance_iqd' => $customer->remaining_balance_iqd,
+                'remaining_balance_usd' => $customer->remaining_balance_usd,
+                'created_at' => $customer->created_at->format('Y-m-d'),
+            ];
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم إنشاء العميل بنجاح',
+                'customer' => $customerData
+            ], 201);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'خطأ في البيانات المدخلة',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ غير متوقع: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

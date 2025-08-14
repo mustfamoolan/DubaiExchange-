@@ -105,6 +105,7 @@ class ReceiveController extends Controller
         $request->validate([
             'documentNumber' => 'required|string',
             'receivedFrom' => 'required|string|max:255',
+            'selectedCustomer' => 'nullable|array',
             'amount' => 'required|numeric|min:0.01',
             'currency' => 'required|string|max:100',
             'exchange_rate' => 'required|numeric|min:0.01',
@@ -153,6 +154,45 @@ class ReceiveController extends Controller
                 'notes' => $request->notes,
                 'entered_by' => $sessionUser['name']
             ]);
+
+            // إنشاء معاملة عميل إذا تم اختيار عميل
+            if ($request->selectedCustomer && isset($request->selectedCustomer['id'])) {
+                $customer = \App\Models\Customer::find($request->selectedCustomer['id']);
+                if ($customer) {
+                    // تحديد نوع المعاملة والعملة
+                    $transactionType = 'payment'; // دفع (العميل دفع للصرافة)
+
+                    // تحديد المبلغ حسب العملة
+                    $amountIqd = 0;
+                    $amountUsd = 0;
+
+                    if ($request->currency === 'دينار عراقي') {
+                        $amountIqd = $request->amount;
+                    } elseif ($request->currency === 'دولار أمريكي') {
+                        $amountUsd = $request->amount;
+                    } else {
+                        // للعملات الأخرى، تحويل إلى دينار عراقي
+                        $amountIqd = $amountInIqd;
+                    }
+
+                    \App\Models\CustomerTransaction::create([
+                        'customer_id' => $customer->id,
+                        'user_id' => $sessionUser['id'],
+                        'transaction_code' => \App\Models\CustomerTransaction::generateTransactionCode(),
+                        'type' => $transactionType,
+                        'amount_iqd' => $amountIqd,
+                        'amount_usd' => $amountUsd,
+                        'description' => 'سند قبض رقم: ' . $request->documentNumber . ' - ' . ($request->description ?: 'بدون وصف'),
+                        'reference_number' => $request->documentNumber,
+                        'currency' => $request->currency,
+                        'exchange_rate' => $request->exchange_rate,
+                        'notes' => $request->notes
+                    ]);
+
+                    // إعادة حساب رصيد العميل
+                    $customer->updateBalances();
+                }
+            }
 
             DB::commit();
 

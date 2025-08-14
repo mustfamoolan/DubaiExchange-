@@ -301,3 +301,10 @@ Route::prefix('employee')->group(function () {
     Route::post('/exchange', [ExchangeController::class, 'store'])->name('employee.exchange.store');
     Route::get('/exchange/detailed-report', [ExchangeController::class, 'getDetailedReport'])->name('employee.exchange.detailed-report');
 });
+
+// مسارات API
+Route::prefix('api')->group(function () {
+    // API للعملاء
+    Route::get('/customers/search', [CustomerController::class, 'apiSearch'])->name('api.customers.search');
+    Route::post('/customers', [CustomerController::class, 'apiStore'])->name('api.customers.store');
+});

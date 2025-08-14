@@ -49,12 +49,29 @@ export default function Receive({
         documentNumber: '',
         currentTime: new Date().toLocaleString('ar-EG'),
         receivedFrom: '',
+        selectedCustomer: null,
         amount: '',
         currency: '',
         exchange_rate: '',
         description: '',
         receiverName: user?.name || 'الموظف الحالي',
         notes: ''
+    });
+
+    // حالات البحث عن العملاء
+    const [searchQuery, setSearchQuery] = useState('');
+    const [customers, setCustomers] = useState([]);
+    const [filteredCustomers, setFilteredCustomers] = useState([]);
+    const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+    const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
+
+    // حالات النافذة المنبثقة لإضافة عميل جديد
+    const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
+    const [newCustomerData, setNewCustomerData] = useState({
+        name: '',
+        phone: '',
+        opening_balance_iqd: '0',
+        opening_balance_usd: '0'
     });
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -140,6 +157,136 @@ export default function Receive({
         });
     };
 
+    // جلب العملاء من الخادم
+    const fetchCustomers = async () => {
+        setIsLoadingCustomers(true);
+        try {
+            const response = await fetch('/api/customers/search', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setCustomers(data.customers || []);
+                setFilteredCustomers(data.customers || []);
+            }
+        } catch (error) {
+            console.error('Error fetching customers:', error);
+        } finally {
+            setIsLoadingCustomers(false);
+        }
+    };
+
+    // البحث في العملاء
+    const handleCustomerSearch = (query) => {
+        setSearchQuery(query);
+        setFormData(prev => ({ ...prev, receivedFrom: query, selectedCustomer: null }));
+
+        if (query.trim() === '') {
+            setFilteredCustomers(customers);
+            setShowCustomerDropdown(false);
+            return;
+        }
+
+        const filtered = customers.filter(customer =>
+            customer.name.toLowerCase().includes(query.toLowerCase()) ||
+            customer.phone.includes(query) ||
+            customer.customer_code.toLowerCase().includes(query.toLowerCase())
+        );
+
+        setFilteredCustomers(filtered);
+        setShowCustomerDropdown(true);
+    };
+
+    // اختيار عميل من القائمة
+    const handleSelectCustomer = (customer) => {
+        setFormData(prev => ({
+            ...prev,
+            receivedFrom: customer.name,
+            selectedCustomer: customer
+        }));
+        setSearchQuery(customer.name);
+        setShowCustomerDropdown(false);
+    };
+
+    // إضافة عميل جديد
+    const handleAddNewCustomer = async () => {
+        try {
+            const response = await fetch('/api/customers', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                },
+                body: JSON.stringify({
+                    name: newCustomerData.name,
+                    phone: newCustomerData.phone,
+                    opening_balance_iqd: newCustomerData.opening_balance_iqd || '0',
+                    opening_balance_usd: newCustomerData.opening_balance_usd || '0'
+                })
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                const newCustomer = result.customer;
+
+                // إضافة العميل الجديد للقائمة
+                setCustomers(prev => [newCustomer, ...prev]);
+                setFilteredCustomers(prev => [newCustomer, ...prev]);
+
+                // اختيار العميل الجديد
+                handleSelectCustomer(newCustomer);
+
+                // إغلاق النافذة المنبثقة وإعادة تعيين البيانات
+                setShowAddCustomerModal(false);
+                setNewCustomerData({
+                    name: '',
+                    phone: '',
+                    opening_balance_iqd: '0',
+                    opening_balance_usd: '0'
+                });
+
+                alert('تم إضافة العميل بنجاح!');
+            } else {
+                const error = await response.json();
+                alert(error.message || 'حدث خطأ في إضافة العميل');
+            }
+        } catch (error) {
+            console.error('Error adding customer:', error);
+            alert('حدث خطأ في الشبكة');
+        }
+    };
+
+    // إظهار نافذة إضافة عميل جديد
+    const handleShowAddCustomer = () => {
+        setNewCustomerData(prev => ({ ...prev, name: searchQuery }));
+        setShowAddCustomerModal(true);
+        setShowCustomerDropdown(false);
+    };
+
+    // جلب العملاء عند تحميل الصفحة
+    useEffect(() => {
+        fetchCustomers();
+    }, []);
+
+    // إغلاق القائمة المنسدلة عند النقر خارجها
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (showCustomerDropdown && !event.target.closest('.relative')) {
+                setShowCustomerDropdown(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [showCustomerDropdown]);
+
     // إضافة state للتقرير المفصل
     const [detailedReportData, setDetailedReportData] = useState(null);
 
@@ -203,6 +350,7 @@ export default function Receive({
             body: JSON.stringify({
                 documentNumber: formData.documentNumber,
                 receivedFrom: formData.receivedFrom,
+                selectedCustomer: formData.selectedCustomer,
                 amount: formData.amount,
                 currency: formData.currency,
                 exchange_rate: formData.exchange_rate,
@@ -298,6 +446,7 @@ export default function Receive({
                 body: JSON.stringify({
                     documentNumber: formData.documentNumber,
                     receivedFrom: formData.receivedFrom,
+                    selectedCustomer: formData.selectedCustomer,
                     amount: formData.amount,
                     currency: formData.currency,
                     exchange_rate: formData.exchange_rate,
@@ -409,12 +558,15 @@ export default function Receive({
         setFormData(prev => ({
             ...prev,
             receivedFrom: '',
+            selectedCustomer: null,
             amount: '',
             currency: '',
             exchange_rate: '',
             description: '',
             notes: ''
         }));
+        setSearchQuery('');
+        setShowCustomerDropdown(false);
     };
 
     const handleBack = () => {
@@ -566,17 +718,111 @@ export default function Receive({
                                     />
                                 </div>
 
-                                <div>
+                                <div className="relative">
                                     <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
                                         استلمت من السيد: *
                                     </label>
-                                    <input
-                                        type="text"
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-right"
-                                        placeholder="اسم الشخص"
-                                        value={formData.receivedFrom}
-                                        onChange={(e) => handleInputChange('receivedFrom', e.target.value)}
-                                    />
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-right"
+                                            placeholder="ابحث عن عميل أو أدخل اسم جديد..."
+                                            value={searchQuery}
+                                            onChange={(e) => handleCustomerSearch(e.target.value)}
+                                            onFocus={() => {
+                                                if (customers.length > 0 && searchQuery) {
+                                                    setShowCustomerDropdown(true);
+                                                }
+                                            }}
+                                        />
+                                        {isLoadingCustomers && (
+                                            <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                                                <div className="animate-spin h-4 w-4 border-2 border-green-500 border-t-transparent rounded-full"></div>
+                                            </div>
+                                        )}
+                                        {formData.selectedCustomer && (
+                                            <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                                                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* قائمة منسدلة للعملاء */}
+                                    {showCustomerDropdown && (
+                                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                            {filteredCustomers.length > 0 ? (
+                                                <>
+                                                    {filteredCustomers.map((customer) => (
+                                                        <div
+                                                            key={customer.id}
+                                                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 text-right"
+                                                            onClick={() => handleSelectCustomer(customer)}
+                                                        >
+                                                            <div className="flex justify-between items-center">
+                                                                <div className="text-left">
+                                                                    <span className="text-xs text-gray-500">{customer.customer_code}</span>
+                                                                </div>
+                                                                <div>
+                                                                    <div className="font-medium text-gray-900">{customer.name}</div>
+                                                                    <div className="text-sm text-gray-600">{customer.phone}</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {searchQuery && !filteredCustomers.some(c => c.name.toLowerCase() === searchQuery.toLowerCase()) && (
+                                                        <div
+                                                            className="px-4 py-3 bg-green-50 hover:bg-green-100 cursor-pointer border-t border-green-200 text-center text-green-700 font-medium"
+                                                            onClick={handleShowAddCustomer}
+                                                        >
+                                                            <svg className="w-4 h-4 inline-block ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                            </svg>
+                                                            إضافة عميل جديد: "{searchQuery}"
+                                                        </div>
+                                                    )}
+                                                </>
+                                            ) : searchQuery ? (
+                                                <div
+                                                    className="px-4 py-3 bg-green-50 hover:bg-green-100 cursor-pointer text-center text-green-700 font-medium"
+                                                    onClick={handleShowAddCustomer}
+                                                >
+                                                    <svg className="w-4 h-4 inline-block ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                    </svg>
+                                                    إضافة عميل جديد: "{searchQuery}"
+                                                </div>
+                                            ) : (
+                                                <div className="px-4 py-3 text-center text-gray-500">
+                                                    لا توجد عملاء
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* عرض معلومات العميل المختار */}
+                                    {formData.selectedCustomer && (
+                                        <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg text-right">
+                                            <div className="flex justify-between items-center">
+                                                <div className="text-left">
+                                                    <span className="text-xs font-medium text-green-700">{formData.selectedCustomer.customer_code}</span>
+                                                </div>
+                                                <div>
+                                                    <div className="font-medium text-green-900">{formData.selectedCustomer.name}</div>
+                                                    <div className="text-sm text-green-700">{formData.selectedCustomer.phone}</div>
+                                                </div>
+                                            </div>
+                                            <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                                                <div className="text-center bg-white p-2 rounded">
+                                                    <div className="text-gray-600">الرصيد USD</div>
+                                                    <div className="font-bold text-green-700">${formData.selectedCustomer.remaining_balance_usd}</div>
+                                                </div>
+                                                <div className="text-center bg-white p-2 rounded">
+                                                    <div className="text-gray-600">الرصيد IQD</div>
+                                                    <div className="font-bold text-green-700">{parseInt(formData.selectedCustomer.remaining_balance_iqd).toLocaleString()} د.ع</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div>
@@ -784,6 +1030,101 @@ export default function Receive({
                                     <p className="mt-2 text-gray-600">جاري تحميل التقرير...</p>
                                 </div>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* النافذة المنبثقة لإضافة عميل جديد */}
+            {showAddCustomerModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <button
+                                    onClick={() => setShowAddCustomerModal(false)}
+                                    className="text-gray-400 hover:text-gray-600"
+                                >
+                                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                                <h2 className="text-xl font-bold text-gray-900">إضافة عميل جديد</h2>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                                        اسم العميل: *
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-right"
+                                        placeholder="أدخل اسم العميل"
+                                        value={newCustomerData.name}
+                                        onChange={(e) => setNewCustomerData(prev => ({ ...prev, name: e.target.value }))}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                                        رقم الهاتف: *
+                                    </label>
+                                    <input
+                                        type="tel"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-right"
+                                        placeholder="أدخل رقم الهاتف"
+                                        value={newCustomerData.phone}
+                                        onChange={(e) => setNewCustomerData(prev => ({ ...prev, phone: e.target.value }))}
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                                            الرصيد الافتتاحي USD
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-right"
+                                            placeholder="0.00 (يمكن أن يكون سالب)"
+                                            value={newCustomerData.opening_balance_usd}
+                                            onChange={(e) => setNewCustomerData(prev => ({ ...prev, opening_balance_usd: e.target.value }))}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                                            الرصيد الافتتاحي IQD
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="1"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-right"
+                                            placeholder="0 (يمكن أن يكون سالب)"
+                                            value={newCustomerData.opening_balance_iqd}
+                                            onChange={(e) => setNewCustomerData(prev => ({ ...prev, opening_balance_iqd: e.target.value }))}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex space-x-3 space-x-reverse pt-4">
+                                    <button
+                                        onClick={() => setShowAddCustomerModal(false)}
+                                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                                    >
+                                        إلغاء
+                                    </button>
+                                    <button
+                                        onClick={handleAddNewCustomer}
+                                        disabled={!newCustomerData.name || !newCustomerData.phone}
+                                        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                    >
+                                        إضافة العميل
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

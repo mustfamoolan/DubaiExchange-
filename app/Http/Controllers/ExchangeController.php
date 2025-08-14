@@ -102,7 +102,8 @@ class ExchangeController extends Controller
         $request->validate([
             'invoiceNumber' => 'required|string',
             'amount' => 'required|numeric|min:0.01',
-            'description' => 'required|string|max:1000'
+            'description' => 'required|string|max:1000',
+            'selectedCustomer' => 'nullable|array'
         ]);
 
         DB::beginTransaction();
@@ -143,6 +144,36 @@ class ExchangeController extends Controller
                 'entered_by' => $sessionUser['name'],
                 'notes' => $request->notes ?? null
             ]);
+
+            // إنشاء معاملة عميل إذا تم اختيار عميل
+            if ($request->selectedCustomer && isset($request->selectedCustomer['id'])) {
+                $customer = \App\Models\Customer::find($request->selectedCustomer['id']);
+                if ($customer) {
+                    // تحديد نوع المعاملة (الصرافة دفعت للعميل)
+                    $transactionType = 'delivery'; // تسليم (الصرافة دفعت للعميل)
+
+                    // المبلغ بالدينار العراقي (سند الصرف دائماً بالدينار)
+                    $amountIqd = $request->amount;
+                    $amountUsd = 0;
+
+                    \App\Models\CustomerTransaction::create([
+                        'customer_id' => $customer->id,
+                        'user_id' => $sessionUser['id'],
+                        'transaction_code' => \App\Models\CustomerTransaction::generateTransactionCode(),
+                        'type' => $transactionType,
+                        'amount_iqd' => $amountIqd,
+                        'amount_usd' => $amountUsd,
+                        'description' => 'سند صرف رقم: ' . $request->invoiceNumber . ' - ' . ($request->description ?: 'بدون وصف'),
+                        'reference_number' => $request->invoiceNumber,
+                        'currency' => 'دينار عراقي',
+                        'exchange_rate' => 1,
+                        'notes' => $request->notes
+                    ]);
+
+                    // إعادة حساب رصيد العميل
+                    $customer->updateBalances();
+                }
+            }
 
             DB::commit();
 
