@@ -830,7 +830,7 @@ export default function Exchange({
                                         </div>
 
                                         {/* قائمة العملاء المنسدلة */}
-                                        {showCustomerDropdown && filteredCustomers.length > 0 && !formData.selectedCustomer && (
+                                        {showCustomerDropdown && searchQuery && !formData.selectedCustomer && (
                                             <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                                                 {filteredCustomers.length > 0 ? (
                                                     <>
@@ -851,18 +851,23 @@ export default function Exchange({
                                                                 </div>
                                                             </div>
                                                         ))}
-
-                                                        {/* خيار إضافة عميل جديد */}
-                                                        <div
-                                                            className="px-4 py-3 hover:bg-green-50 cursor-pointer border-t-2 border-green-200 bg-green-25"
-                                                            onClick={() => setShowAddCustomerModal(true)}
-                                                        >
-                                                            <div className="text-center text-green-700 font-medium">
-                                                                ➕ إضافة عميل جديد: "{searchQuery}"
-                                                            </div>
-                                                        </div>
                                                     </>
-                                                ) : (
+                                                ) : null}
+
+                                                {/* زر إضافة عميل جديد - يظهر دائماً عند البحث */}
+                                                {searchQuery && searchQuery.trim() !== '' && (
+                                                    <div
+                                                        className={`px-4 py-3 hover:bg-green-50 cursor-pointer text-center text-green-700 font-medium ${
+                                                            filteredCustomers.length > 0 ? 'border-t-2 border-green-200' : ''
+                                                        }`}
+                                                        onClick={() => setShowAddCustomerModal(true)}
+                                                    >
+                                                        ➕ إضافة عميل جديد: "{searchQuery}"
+                                                    </div>
+                                                )}
+
+                                                {/* رسالة عدم وجود عملاء - تظهر فقط عند عدم وجود نتائج وعدم وجود بحث */}
+                                                {!searchQuery && filteredCustomers.length === 0 && (
                                                     <div className="px-4 py-3 text-center text-gray-500">
                                                         لا توجد عملاء
                                                     </div>
