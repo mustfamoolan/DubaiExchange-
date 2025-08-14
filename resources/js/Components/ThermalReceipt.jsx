@@ -160,11 +160,6 @@ const ThermalReceipt = ({ receiptData, onClose, onPrint }) => {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>فاتورة حرارية - ${receiptData.receipt_number}</title>
             <style>
-                @page {
-                    size: 80mm auto;
-                    margin: 2mm;
-                }
-
                 * {
                     margin: 0;
                     padding: 0;
@@ -172,14 +167,14 @@ const ThermalReceipt = ({ receiptData, onClose, onPrint }) => {
                 }
 
                 body {
-                    font-family: 'Courier New', monospace;
-                    width: 76mm;
+                    font-family: 'Arial', sans-serif;
+                    width: 80mm;
                     margin: 0 auto;
-                    padding: 2mm;
+                    padding: 5mm;
                     background: white;
                     color: #000;
-                    font-size: 10px;
-                    line-height: 1.2;
+                    font-size: 12px;
+                    line-height: 1.4;
                 }
 
                 .receipt-container {
@@ -189,137 +184,181 @@ const ThermalReceipt = ({ receiptData, onClose, onPrint }) => {
 
                 .header {
                     border-bottom: 2px dashed #000;
-                    padding-bottom: 3mm;
-                    margin-bottom: 3mm;
+                    padding-bottom: 8px;
+                    margin-bottom: 10px;
                 }
 
                 .company-name {
-                    font-size: 14px;
+                    font-size: 16px;
                     font-weight: bold;
-                    margin-bottom: 2mm;
+                    margin-bottom: 5px;
                 }
 
                 .company-info {
-                    font-size: 8px;
-                    color: #333;
-                    margin-bottom: 1mm;
+                    font-size: 10px;
+                    color: #555;
+                    margin-bottom: 5px;
                 }
 
                 .receipt-title {
-                    background: #000;
-                    color: #fff;
-                    padding: 2mm;
-                    font-size: 11px;
+                    font-size: 14px;
                     font-weight: bold;
-                    margin: 2mm 0;
+                    margin: 10px 0;
+                    padding: 5px;
+                    background: #f0f0f0;
+                    border-radius: 3px;
                 }
 
                 .receipt-info {
                     text-align: right;
-                    margin: 3mm 0;
+                    margin: 10px 0;
                 }
 
                 .info-row {
                     display: flex;
                     justify-content: space-between;
-                    margin-bottom: 1mm;
-                    font-size: 9px;
-                    border-bottom: 1px dotted #999;
-                    padding-bottom: 0.5mm;
+                    margin: 3px 0;
+                    padding: 2px 0;
                 }
 
                 .info-label {
                     font-weight: bold;
-                    min-width: 25mm;
+                    min-width: 60px;
                 }
 
                 .info-value {
+                    flex: 1;
                     text-align: left;
                 }
 
-                .transaction-details {
-                    border: 2px solid #000;
-                    padding: 2mm;
-                    margin: 3mm 0;
-                    background: #f9f9f9;
+                .amount-section {
+                    border-top: 1px solid #000;
+                    border-bottom: 1px solid #000;
+                    padding: 8px 0;
+                    margin: 10px 0;
                 }
 
-                .detail-row {
+                .amount-row {
                     display: flex;
                     justify-content: space-between;
-                    margin-bottom: 1mm;
-                    font-size: 9px;
+                    margin: 3px 0;
                 }
 
-                .total-row {
-                    border-top: 2px dashed #000;
-                    padding-top: 1mm;
-                    margin-top: 2mm;
+                .total-amount {
+                    font-size: 14px;
                     font-weight: bold;
-                    font-size: 11px;
+                    border-top: 1px dashed #000;
+                    padding-top: 5px;
+                    margin-top: 5px;
                 }
 
                 .notes {
-                    margin: 3mm 0;
-                    padding: 2mm;
-                    border: 1px dashed #000;
                     text-align: right;
-                    font-size: 8px;
+                    margin: 10px 0;
+                    font-size: 10px;
+                    color: #666;
                 }
 
                 .footer {
                     border-top: 2px dashed #000;
-                    padding-top: 2mm;
-                    margin-top: 4mm;
+                    padding-top: 8px;
+                    margin-top: 15px;
                     text-align: center;
-                    font-size: 8px;
+                    font-size: 10px;
                 }
 
                 @media print {
                     @page {
-                        size: 80mm auto;
-                        margin: 1mm;
+                        size: 80mm 210mm;
+                        margin: 0;
                     }
 
                     body {
-                        width: 78mm !important;
-                        margin: 0 !important;
-                        padding: 1mm !important;
-                        print-color-adjust: exact;
-                        -webkit-print-color-adjust: exact;
+                        width: 80mm;
+                        max-width: 80mm;
+                        margin: 0;
+                        padding: 3mm;
+                        font-size: 10px;
+                        line-height: 1.2;
                     }
 
                     .receipt-container {
                         page-break-inside: avoid;
+                        width: 100%;
+                        max-width: 74mm;
+                    }
+
+                    .company-name {
+                        font-size: 14px;
+                    }
+
+                    .company-info {
+                        font-size: 8px;
                     }
 
                     .receipt-title {
-                        background: #000 !important;
-                        color: #fff !important;
-                        -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
+                        font-size: 12px;
+                        margin: 8px 0;
+                        padding: 3px;
                     }
 
-                    .transaction-details {
-                        background: #f9f9f9 !important;
-                        -webkit-print-color-adjust: exact !important;
-                        print-color-adjust: exact !important;
+                    .info-row {
+                        margin: 2px 0;
+                        padding: 1px 0;
+                        font-size: 9px;
+                    }
+
+                    .amount-section {
+                        padding: 6px 0;
+                        margin: 8px 0;
+                    }
+
+                    .amount-row {
+                        margin: 2px 0;
+                        font-size: 10px;
+                    }
+
+                    .total-amount {
+                        font-size: 12px;
+                        padding-top: 3px;
+                        margin-top: 3px;
+                    }
+
+                    .notes {
+                        margin: 8px 0;
+                        font-size: 8px;
+                    }
+
+                    .footer {
+                        padding-top: 6px;
+                        margin-top: 12px;
+                        font-size: 8px;
+                    }
+
+                    /* إخفاء عناصر غير ضرورية للطباعة */
+                    img {
+                        max-width: 20mm;
+                        max-height: 20mm;
                     }
                 }
             </style>
         </head>
         <body>
             <div class="receipt-container">
+                <!-- رأس الفاتورة -->
                 <div class="header">
+                    <img src="${getServiceImage(receiptData.service_type || receiptData.service)}" alt="${receiptData.service_name}" style="width: 40px; height: 40px; margin: 0 auto; display: block; margin-bottom: 5px;" />
                     <div class="company-name">${receiptData.company_info?.name || 'دبي العملية للصرافة'}</div>
                     <div class="company-info">هاتف: ${receiptData.company_info?.phone || '07801234567'}</div>
                     <div class="company-info">${receiptData.company_info?.address || 'العراق - بغداد'}</div>
                 </div>
 
+                <!-- عنوان الفاتورة -->
                 <div class="receipt-title">
-                    فاتورة ${receiptData.transaction_type === 'charge' ? 'شحن' : receiptData.transaction_type === 'payment' ? 'دفع' : receiptData.transaction_type} - ${receiptData.service_name}
+                    فاتورة ${receiptData.transaction_type} - ${receiptData.service_name}
                 </div>
 
+                <!-- معلومات الفاتورة -->
                 <div class="receipt-info">
                     <div class="info-row">
                         <span class="info-label">رقم الفاتورة:</span>
@@ -349,46 +388,48 @@ const ThermalReceipt = ({ receiptData, onClose, onPrint }) => {
                     ` : ''}
                 </div>
 
-                <div class="transaction-details">
-                    ${(receiptData.service_type === 'buy_usd' || receiptData.service_type === 'sell_usd') ? `
-                        <div class="detail-row">
-                            <span>مبلغ الدولار:</span>
-                            <span>$${receiptData.dollar_amount}</span>
-                        </div>
-                        <div class="detail-row">
-                            <span>سعر الصرف:</span>
-                            <span>${receiptData.exchange_rate} د.ع</span>
-                        </div>
-                        <div class="detail-row">
-                            <span>المبلغ بالدينار:</span>
-                            <span>${receiptData.iqd_amount} د.ع</span>
-                        </div>
+                <!-- قسم المبالغ -->
+                <div class="amount-section">
+                    ${receiptData.service_type === 'buy_usd' || receiptData.service_type === 'sell_usd' ? `
+                    <div class="amount-row">
+                        <span>مبلغ الدولار:</span>
+                        <span>$${receiptData.dollar_amount}</span>
+                    </div>
+                    <div class="amount-row">
+                        <span>سعر الصرف:</span>
+                        <span>${receiptData.exchange_rate} د.ع</span>
+                    </div>
+                    <div class="amount-row">
+                        <span>المبلغ بالدينار:</span>
+                        <span>${receiptData.iqd_amount} د.ع</span>
+                    </div>
                     ` : `
-                        <div class="detail-row">
-                            <span>المبلغ:</span>
-                            <span>${receiptData.amount} د.ع</span>
-                        </div>
+                    <div class="amount-row">
+                        <span>المبلغ:</span>
+                        <span>${receiptData.amount} د.ع</span>
+                    </div>
                     `}
-                    <div class="detail-row">
+                    <div class="amount-row">
                         <span>العمولة:</span>
                         <span>${receiptData.commission} د.ع</span>
                     </div>
-                    <div class="detail-row total-row">
+                    <div class="amount-row total-amount">
                         <span>المجموع:</span>
                         <span>${receiptData.total_amount} د.ع</span>
                     </div>
                 </div>
 
+                <!-- الملاحظات -->
                 ${receiptData.notes ? `
                 <div class="notes">
-                    <strong>ملاحظات:</strong><br>
-                    ${receiptData.notes}
+                    ملاحظات: ${receiptData.notes}
                 </div>
                 ` : ''}
 
+                <!-- تذييل الفاتورة -->
                 <div class="footer">
                     <div>${receiptData.company_info?.footer_text || 'شكراً لكم لتعاملكم معنا'}</div>
-                    <div style="margin-top: 2mm; font-size: 7px;">
+                    <div style="margin-top: 5px; font-size: 8px;">
                         تم الطباعة في: ${new Date().toLocaleString('ar-IQ')}
                     </div>
                 </div>
@@ -444,10 +485,12 @@ const ThermalReceipt = ({ receiptData, onClose, onPrint }) => {
                         className="thermal-receipt bg-white p-3 sm:p-4 text-center font-mono text-xs sm:text-sm border border-gray-200 rounded-lg mx-auto"
                         style={{
                             width: '100%',
-                            maxWidth: '280px',
+                            maxWidth: '80mm',
+                            minHeight: '210mm',
                             margin: '0 auto',
                             fontFamily: 'monospace, Arial, sans-serif',
-                            lineHeight: '1.2'
+                            lineHeight: '1.2',
+                            aspectRatio: '80/210'
                         }}
                     >
                         {/* رأس الفاتورة */}
