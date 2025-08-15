@@ -4,6 +4,39 @@ import { router } from '@inertiajs/react';
 import ThermalReceipt from '../../Components/ThermalReceipt';
 import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
 
+// دالة لتنسيق الأرقام مع فواصل وإزالة الأصفار الزائدة
+const formatNumber = (value) => {
+    if (!value || isNaN(value)) return '';
+    const num = parseFloat(value);
+    if (num === 0) return '0';
+    // إزالة الأصفار الزائدة وإضافة فواصل
+    return num.toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+    });
+};
+
+// دالة لتنسيق الإدخال أثناء الكتابة
+const formatInputNumber = (value) => {
+    if (!value) return '';
+    // إزالة كل شيء ما عدا الأرقام والنقطة
+    const cleanValue = value.replace(/[^0-9.]/g, '');
+    // التأكد من وجود نقطة واحدة فقط
+    const parts = cleanValue.split('.');
+    if (parts.length > 2) {
+        return parts[0] + '.' + parts.slice(1).join('');
+    }
+    return cleanValue;
+};
+
+// دالة لإضافة فواصل للرقم أثناء العرض
+const addCommasToInput = (value) => {
+    if (!value) return '';
+    const parts = value.split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return parts.join('.');
+};
+
 export default function SuperKey({ user, currentBalance = 0, currentCashBalance = 0, transactions = [], openingBalance = 0, quickReport = { charges: 0, payments: 0, operations: 0 } }) {
     const [balance, setBalance] = useState(currentBalance);
     const [cashBalance, setCashBalance] = useState(currentCashBalance);
@@ -74,23 +107,59 @@ export default function SuperKey({ user, currentBalance = 0, currentCashBalance 
     // حساب العمولة التلقائي
     useEffect(() => {
         if (formData.amount) {
-            const amount = parseFloat(formData.amount);
+            // إزالة الفواصل قبل التحويل إلى رقم
+            const cleanAmount = formData.amount.replace(/,/g, '');
+            const amount = parseFloat(cleanAmount);
             if (!isNaN(amount)) {
                 const commission = Math.round(amount * 0.01); // 1% عمولة
-                setFormData(prev => ({ ...prev, commission: commission.toString() }));
+                const formattedCommission = addCommasToInput(commission.toString());
+                setFormData(prev => ({ ...prev, commission: formattedCommission }));
             }
         }
     }, [formData.amount]);
 
+    // تطبيق تنسيق الفواصل عند الانتهاء من الكتابة
+    const handleBlur = (field) => {
+        if (field === 'amount' || field === 'commission') {
+            const value = formData[field];
+            if (value) {
+                const cleanValue = value.replace(/,/g, '');
+                const formattedValue = addCommasToInput(cleanValue);
+                setFormData(prev => ({ ...prev, [field]: formattedValue }));
+            }
+        }
+    };
+
+    // إزالة الفواصل عند بدء الكتابة
+    const handleFocus = (field) => {
+        if (field === 'amount' || field === 'commission') {
+            const value = formData[field];
+            if (value) {
+                const cleanValue = value.replace(/,/g, '');
+                setFormData(prev => ({ ...prev, [field]: cleanValue }));
+            }
+        }
+    };
+
     // تحديث قيم النموذج
     const handleInputChange = (field, value) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        if (field === 'amount' || field === 'commission') {
+            // تنظيف القيمة من الأحرف غير المرغوبة
+            const cleanValue = formatInputNumber(value);
+            setFormData(prev => ({ ...prev, [field]: cleanValue }));
+        } else {
+            // الحقول النصية بدون تنسيق
+            setFormData(prev => ({ ...prev, [field]: value }));
+        }
     };
 
     // حساب المبلغ الإجمالي
     const getTotalAmount = () => {
-        const amount = parseFloat(formData.amount) || 0;
-        const commission = parseFloat(formData.commission) || 0;
+        // إزالة الفواصل قبل التحويل إلى رقم
+        const cleanAmount = (formData.amount || '').replace(/,/g, '');
+        const cleanCommission = (formData.commission || '').replace(/,/g, '');
+        const amount = parseFloat(cleanAmount) || 0;
+        const commission = parseFloat(cleanCommission) || 0;
         return amount + commission;
     };
 
@@ -144,7 +213,9 @@ export default function SuperKey({ user, currentBalance = 0, currentCashBalance 
 
     // إرسال المعاملة
     const handleSubmit = async (action) => {
-        if (!formData.amount || parseFloat(formData.amount) <= 0) {
+        // إزالة الفواصل للتحقق من صحة القيمة
+        const cleanAmount = (formData.amount || '').replace(/,/g, '');
+        if (!cleanAmount || parseFloat(cleanAmount) <= 0) {
             alert('يرجى إدخال مبلغ صحيح');
             return;
         }
@@ -152,6 +223,14 @@ export default function SuperKey({ user, currentBalance = 0, currentCashBalance 
         setIsSubmitting(true);
 
         try {
+            // إعداد البيانات مع إزالة الفواصل
+            const dataToSend = {
+                ...formData,
+                amount: (formData.amount || '').replace(/,/g, ''),
+                commission: (formData.commission || '').replace(/,/g, ''),
+                reference_number: referenceNumber
+            };
+
             const response = await fetch(`/super-key/${action}`, {
                 method: 'POST',
                 headers: {
@@ -159,10 +238,7 @@ export default function SuperKey({ user, currentBalance = 0, currentCashBalance 
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                     'Accept': 'application/json'
                 },
-                body: JSON.stringify({
-                    ...formData,
-                    reference_number: referenceNumber
-                })
+                body: JSON.stringify(dataToSend)
             });
 
             if (response.ok) {
@@ -227,7 +303,9 @@ export default function SuperKey({ user, currentBalance = 0, currentCashBalance 
 
     // حفظ وطباعة الفاتورة
     const handleSaveAndPrint = async () => {
-        if (!formData.amount || parseFloat(formData.amount) <= 0) {
+        // إزالة الفواصل للتحقق من صحة القيمة
+        const cleanAmount = (formData.amount || '').replace(/,/g, '');
+        if (!cleanAmount || parseFloat(cleanAmount) <= 0) {
             alert('يرجى إدخال مبلغ صحيح');
             return;
         }
@@ -235,8 +313,8 @@ export default function SuperKey({ user, currentBalance = 0, currentCashBalance 
         const transactionData = {
             transaction_type: activeTab,
             reference_number: referenceNumber,
-            amount: formData.amount,
-            commission: formData.commission,
+            amount: (formData.amount || '').replace(/,/g, ''),
+            commission: (formData.commission || '').replace(/,/g, ''),
             notes: formData.notes,
             customer_phone: null
         };
@@ -438,11 +516,13 @@ export default function SuperKey({ user, currentBalance = 0, currentCashBalance 
                                         المبلغ:
                                     </label>
                                     <input
-                                        type="number"
+                                        type="text"
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-right"
                                         placeholder="المبلغ"
                                         value={formData.amount}
                                         onChange={(e) => handleInputChange('amount', e.target.value)}
+                                        onFocus={() => handleFocus('amount')}
+                                        onBlur={() => handleBlur('amount')}
                                     />
                                 </div>
 
@@ -451,11 +531,13 @@ export default function SuperKey({ user, currentBalance = 0, currentCashBalance 
                                         العمولة:
                                     </label>
                                     <input
-                                        type="number"
+                                        type="text"
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-right"
                                         placeholder="العمولة"
                                         value={formData.commission}
                                         onChange={(e) => handleInputChange('commission', e.target.value)}
+                                        onFocus={() => handleFocus('commission')}
+                                        onBlur={() => handleBlur('commission')}
                                     />
                                 </div>
                             </div>
