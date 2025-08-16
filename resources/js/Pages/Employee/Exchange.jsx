@@ -458,8 +458,8 @@ export default function Exchange({
             return;
         }
 
-        // التحقق من وجود مستلم في حالة الصرف لعميل
-        if (exchangeType === 'customer' && !formData.paidTo && !formData.selectedCustomer) {
+        // التحقق من وجود مستلم في حالة الصرف لعميل فقط
+        if (exchangeType === 'customer' && !formData.selectedCustomer && !formData.paidTo) {
             alert('يرجى اختيار عميل أو إدخال اسم المستلم');
             return;
         }
@@ -469,12 +469,16 @@ export default function Exchange({
             {
                 reference_number: formData.invoiceNumber,
                 employee_name: user?.name || 'الموظف الحالي',
-                person_name: formData.selectedCustomer ? formData.selectedCustomer.name : (formData.paidTo || 'غير محدد'),
+                person_name: exchangeType === 'customer'
+                    ? (formData.selectedCustomer ? formData.selectedCustomer.name : formData.paidTo)
+                    : 'صرف عادي',
                 currency: 'دينار عراقي',
                 amount: formData.amount,
                 exchange_rate: '1',
                 amount_in_iqd: parseFloat(formData.amount),
-                beneficiary: formData.selectedCustomer ? formData.selectedCustomer.name : (formData.paidTo || 'غير محدد'),
+                beneficiary: exchangeType === 'customer'
+                    ? (formData.selectedCustomer ? formData.selectedCustomer.name : formData.paidTo)
+                    : 'صرف عادي',
                 description: formData.description,
                 notes: formData.notes || ''
             },
@@ -798,8 +802,8 @@ export default function Exchange({
                                 </div>
                             )}
 
-                            {/* حقل اسم المستلم للصرف العادي */}
-                            {exchangeType === 'normal' && (
+                            {/* حقل اسم المستلم للصرف العادي - تم إلغاؤه */}
+                            {/* {exchangeType === 'normal' && (
                                 <div className="mb-6">
                                     <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
                                         صُرف للسيد: (اختياري)
@@ -812,7 +816,7 @@ export default function Exchange({
                                         onChange={(e) => handleInputChange('paidTo', e.target.value)}
                                     />
                                 </div>
-                            )}
+                            )} */}
 
                             {/* ملاحظات إضافية */}
                             <div className="mb-8">
@@ -832,7 +836,7 @@ export default function Exchange({
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <button
                                     onClick={handleSaveAndPrint}
-                                    disabled={isSubmitting || !formData.amount || !formData.description || (exchangeType === 'customer' && !formData.paidTo && !formData.selectedCustomer)}
+                                    disabled={isSubmitting || !formData.amount || !formData.description || (exchangeType === 'customer' && !formData.selectedCustomer && !formData.paidTo)}
                                     className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-xl transition-colors duration-200 flex items-center justify-center"
                                 >
                                     <span className="ml-2">🖨️</span>
@@ -840,7 +844,7 @@ export default function Exchange({
                                 </button>
                                 <button
                                     onClick={handleSave}
-                                    disabled={isSubmitting || !formData.amount || !formData.description || (exchangeType === 'customer' && !formData.paidTo && !formData.selectedCustomer)}
+                                    disabled={isSubmitting || !formData.amount || !formData.description || (exchangeType === 'customer' && !formData.selectedCustomer && !formData.paidTo)}
                                     className="bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-xl transition-colors duration-200 flex items-center justify-center"
                                 >
                                     <span className="ml-2">💾</span>
