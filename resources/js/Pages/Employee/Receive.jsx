@@ -6,49 +6,14 @@ import ThermalReceipt from '../../Components/ThermalReceipt';
 import { useReceiveExchangeReceipt } from '../../Hooks/useReceiveExchangeReceipt';
 import ReceiveExchangeThermalReceipt from '../../Components/ReceiveExchangeThermalReceipt';
 
-// دالة لتنسيق الأرقام مع فواصل وإزالة الأصفار الزائدة
-const formatNumber = (value) => {
-    if (!value || isNaN(value)) return '';
-    const num = parseFloat(value);
-    if (num === 0) return '0';
-    // إزالة الأصفار الزائدة وإضافة فواصل
-    return num.toLocaleString('en-US', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2
-    });
-};
-
-// دالة لتنسيق الإدخال أثناء الكتابة
-const formatInputNumber = (value) => {
-    if (!value) return '';
-    // إزالة كل شيء ما عدا الأرقام والنقطة
-    const cleanValue = value.replace(/[^0-9.]/g, '');
-    // التأكد من وجود نقطة واحدة فقط
-    const parts = cleanValue.split('.');
-    if (parts.length > 2) {
-        return parts[0] + '.' + parts.slice(1).join('');
-    }
-    return cleanValue;
-};
-
-// دالة لإضافة فواصل للرقم أثناء العرض
-const addCommasToInput = (value) => {
-    if (!value) return '';
-    const parts = value.split('.');
-    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    return parts.join('.');
-};
-
 export default function Receive({
     user,
     currentBalance = 0,
-    currentUsdBalance = 0,
     openingBalance = 0,
     transactions = [],
     quickReport = { received_today: 0, operations: 0, total_received: 0, total_exchanged: 0 }
 }) {
     const [balance, setBalance] = useState(currentBalance);
-    const [usdBalance, setUsdBalance] = useState(currentUsdBalance);
     const [showDetailedReport, setShowDetailedReport] = useState(false);
     const [todayReport, setTodayReport] = useState({
         received_today: quickReport.received_today,
@@ -87,6 +52,7 @@ export default function Receive({
         selectedCustomer: null,
         amount: '',
         currency: '',
+        exchange_rate: '',
         description: '',
         receiverName: user?.name || 'الموظف الحالي',
         notes: ''
@@ -153,21 +119,38 @@ export default function Receive({
 
     const currencies = [
         'دينار عراقي',
-        'دولار أمريكي'
+        'دولار أمريكي',
+        'يورو',
+        'جنيه استرليني',
+        'ليرة تركية',
+        'دولار أسترالي',
+        'دولار كندي',
+        'يوان صيني',
+        'ين ياباني',
+        'كرونا سويدية',
+        'كرونا نرويجية',
+        'كرونا دنماركية',
+        'مانات أذربيجان',
+        'درهم إماراتي',
+        'دينار أردني',
+        'ريال سعودي',
+        'ريال قطري',
+        'ليرة لبنانية',
+        'جنيه مصري',
+        'دينار كويتي',
+        'دينار بحريني',
+        'ليرة سورية',
+        'ريال إيراني'
     ];
 
     // تحديث قيم النموذج
     const handleInputChange = (field, value) => {
         setFormData(prev => {
-            const newData = { ...prev };
+            const newData = { ...prev, [field]: value };
 
-            // معالجة خاصة للحقول الرقمية
-            if (field === 'amount') {
-                // إزالة الفواصل وتنظيف القيمة
-                const cleanValue = formatInputNumber(value);
-                newData[field] = cleanValue;
-            } else {
-                newData[field] = value;
+            // إذا تم تغيير العملة إلى دينار عراقي، جعل سعر الصرف 1 تلقائياً
+            if (field === 'currency' && value === 'دينار عراقي') {
+                newData.exchange_rate = '1';
             }
 
             return newData;
@@ -190,8 +173,6 @@ export default function Receive({
                 const data = await response.json();
                 setCustomers(data.customers || []);
                 setFilteredCustomers(data.customers || []);
-            } else {
-                console.error('Error fetching customers - HTTP:', response.status);
             }
         } catch (error) {
             console.error('Error fetching customers:', error);
@@ -281,23 +262,9 @@ export default function Receive({
 
                 alert('تم إضافة العميل بنجاح!');
             } else {
-                let errorMessage = 'حدث خطأ في إضافة العميل';
-                try {
-                    const contentType = response.headers.get('content-type');
-                    if (contentType && contentType.includes('application/json')) {
-                        const error = await response.json();
-                        errorMessage = error.message || 'حدث خطأ في إضافة العميل';
-                    } else {
-                        const text = await response.text();
-                        console.error('Response is not JSON:', text);
-                        errorMessage = `خطأ في الخادم (${response.status})`;
-                    }
-                } catch (parseError) {
-                    console.error('Error parsing response:', parseError);
-                    errorMessage = `خطأ في تحليل الاستجابة (${response.status})`;
-                }
-                console.error('خطأ في إنشاء العميل:', errorMessage);
-                alert(errorMessage);
+                const error = await response.json();
+                console.error('خطأ في إنشاء العميل:', error);
+                alert(error.message || 'حدث خطأ في إضافة العميل');
             }
         } catch (error) {
             console.error('خطأ في الشبكة:', error);
@@ -350,7 +317,7 @@ export default function Receive({
                 setDetailedReportData(result);
                 return result;
             } else {
-                console.error('فشل في جلب التقرير المفصل - HTTP:', response.status);
+                console.error('فشل في جلب التقرير المفصل');
                 return null;
             }
         } catch (error) {
@@ -369,13 +336,20 @@ export default function Receive({
 
     // إرسال المعاملة (بدون رسائل تأكيد للاستخدام مع الطباعة)
     const handleSubmitSilent = async () => {
-        // التحقق من الحقول المطلوبة
-        if (!formData.receivedFrom || !formData.amount || !formData.currency) {
+        // التحقق من الحقول المطلوبة (سعر الصرف مطلوب فقط إذا لم تكن العملة دينار عراقي)
+        const isExchangeRateRequired = formData.currency !== 'دينار عراقي';
+
+        if (!formData.receivedFrom || !formData.amount || !formData.currency ||
+            (isExchangeRateRequired && !formData.exchange_rate)) {
             throw new Error('يرجى ملء جميع الحقول المطلوبة');
         }
 
         if (parseFloat(formData.amount) <= 0) {
             throw new Error('يرجى إدخال مبلغ صحيح');
+        }
+
+        if (isExchangeRateRequired && parseFloat(formData.exchange_rate) <= 0) {
+            throw new Error('يرجى إدخال سعر صرف صحيح');
         }
 
         const response = await fetch('/employee/receive', {
@@ -390,7 +364,7 @@ export default function Receive({
                 selectedCustomer: formData.selectedCustomer,
                 amount: formData.amount,
                 currency: formData.currency,
-                exchange_rate: '1', // ثابت لجميع العملات
+                exchange_rate: formData.exchange_rate,
                 description: formData.description,
                 beneficiary: 'الصندوق النقدي', // قيمة ثابتة
                 notes: formData.notes
@@ -402,11 +376,6 @@ export default function Receive({
 
             // تحديث الرصيد
             setBalance(result.new_balance);
-
-            // تحديث رصيد الدولار إذا كان متوفراً
-            if (result.new_usd_balance !== undefined) {
-                setUsdBalance(result.new_usd_balance);
-            }
 
             // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
             if (result.updated_report) {
@@ -422,20 +391,13 @@ export default function Receive({
             setFormData(prev => ({
                 ...prev,
                 receivedFrom: '',
-                selectedCustomer: null,
                 amount: '',
                 currency: '',
+                exchange_rate: '',
                 description: '',
                 notes: '',
                 currentTime: new Date().toLocaleString('ar-EG')
             }));
-
-            // إعادة تعيين البحث عن العملاء
-            setSearchQuery('');
-            setShowCustomerDropdown(false);
-
-            // إعادة جلب العملاء لتحديث الأرصدة
-            await fetchCustomers();
 
             // توليد رقم مرجع جديد
             const now = new Date();
@@ -457,36 +419,29 @@ export default function Receive({
 
             return result; // إرجاع النتيجة للاستخدام في createReceiptAndSave
         } else {
-            let errorMessage = 'حدث خطأ في الخادم';
-            try {
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    const error = await response.json();
-                    errorMessage = error.message || 'حدث خطأ';
-                } else {
-                    // إذا لم تكن الاستجابة JSON، قد تكون HTML (صفحة خطأ)
-                    const text = await response.text();
-                    console.error('Response is not JSON:', text);
-                    errorMessage = `خطأ في الخادم (${response.status})`;
-                }
-            } catch (parseError) {
-                console.error('Error parsing response:', parseError);
-                errorMessage = `خطأ في تحليل الاستجابة (${response.status})`;
-            }
-            throw new Error(errorMessage);
+            const error = await response.json();
+            throw new Error(error.message || 'حدث خطأ');
         }
     };
 
     // إرسال المعاملة
     const handleSubmit = async () => {
-        // التحقق من الحقول المطلوبة
-        if (!formData.receivedFrom || !formData.amount || !formData.currency) {
+        // التحقق من الحقول المطلوبة (سعر الصرف مطلوب فقط إذا لم تكن العملة دينار عراقي)
+        const isExchangeRateRequired = formData.currency !== 'دينار عراقي';
+
+        if (!formData.receivedFrom || !formData.amount || !formData.currency ||
+            (isExchangeRateRequired && !formData.exchange_rate)) {
             alert('يرجى ملء جميع الحقول المطلوبة');
             return;
         }
 
         if (parseFloat(formData.amount) <= 0) {
             alert('يرجى إدخال مبلغ صحيح');
+            return;
+        }
+
+        if (isExchangeRateRequired && parseFloat(formData.exchange_rate) <= 0) {
+            alert('يرجى إدخال سعر صرف صحيح');
             return;
         }
 
@@ -505,7 +460,7 @@ export default function Receive({
                     selectedCustomer: formData.selectedCustomer,
                     amount: formData.amount,
                     currency: formData.currency,
-                    exchange_rate: '1', // ثابت لجميع العملات
+                    exchange_rate: formData.exchange_rate,
                     description: formData.description,
                     beneficiary: 'الصندوق النقدي', // قيمة ثابتة
                     notes: formData.notes
@@ -517,11 +472,6 @@ export default function Receive({
 
                 // تحديث الرصيد
                 setBalance(result.new_balance);
-
-                // تحديث رصيد الدولار إذا كان متوفراً
-                if (result.new_usd_balance !== undefined) {
-                    setUsdBalance(result.new_usd_balance);
-                }
 
                 // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
                 if (result.updated_report) {
@@ -537,20 +487,13 @@ export default function Receive({
                 setFormData(prev => ({
                     ...prev,
                     receivedFrom: '',
-                    selectedCustomer: null,
                     amount: '',
                     currency: '',
+                    exchange_rate: '',
                     description: '',
                     notes: '',
                     currentTime: new Date().toLocaleString('ar-EG')
                 }));
-
-                // إعادة تعيين البحث عن العملاء
-                setSearchQuery('');
-                setShowCustomerDropdown(false);
-
-                // إعادة جلب العملاء لتحديث الأرصدة
-                await fetchCustomers();
 
                 // توليد رقم مرجع جديد
                 const now = new Date();
@@ -573,24 +516,9 @@ export default function Receive({
                 alert('تم حفظ سند القبض بنجاح!');
                 return result; // إرجاع النتيجة للاستخدام في createReceiptAndSave
             } else {
-                let errorMessage = 'حدث خطأ في الخادم';
-                try {
-                    const contentType = response.headers.get('content-type');
-                    if (contentType && contentType.includes('application/json')) {
-                        const error = await response.json();
-                        errorMessage = error.message || 'حدث خطأ';
-                    } else {
-                        // إذا لم تكن الاستجابة JSON، قد تكون HTML (صفحة خطأ)
-                        const text = await response.text();
-                        console.error('Response is not JSON:', text);
-                        errorMessage = `خطأ في الخادم (${response.status})`;
-                    }
-                } catch (parseError) {
-                    console.error('Error parsing response:', parseError);
-                    errorMessage = `خطأ في تحليل الاستجابة (${response.status})`;
-                }
-                alert(errorMessage);
-                return { success: false, error: errorMessage };
+                const error = await response.json();
+                alert(error.message || 'حدث خطأ');
+                return { success: false, error: error.message };
             }
         } catch (error) {
             console.error('Error:', error);
@@ -603,21 +531,16 @@ export default function Receive({
 
     // حفظ وطباعة فاتورة سند القبض المخصصة
     const handleSaveAndPrint = async () => {
-        // التحقق من الحقول المطلوبة
-        if (!formData.receivedFrom || !formData.amount || !formData.currency) {
+        // التحقق من الحقول المطلوبة (سعر الصرف مطلوب فقط إذا لم تكن العملة دينار عراقي)
+        const isExchangeRateRequired = formData.currency !== 'دينار عراقي';
+
+        if (!formData.receivedFrom || !formData.amount || !formData.currency ||
+            (isExchangeRateRequired && !formData.exchange_rate)) {
             alert('يرجى ملء جميع الحقول المطلوبة');
             return;
         }
 
-        // حساب المبلغ بناء على نوع العملة
-        let amountInIqd;
-        if (formData.currency === 'دولار أمريكي') {
-            amountInIqd = parseFloat(formData.amount || 0); // للدولار، نحفظ المبلغ كما هو
-        } else if (formData.currency === 'دينار عراقي') {
-            amountInIqd = parseFloat(formData.amount || 0); // للدينار، نحفظ المبلغ كما هو
-        } else {
-            amountInIqd = parseFloat(formData.amount || 0); // للعملات الأخرى، نحفظ المبلغ كما هو
-        }
+        const amountInIqd = Math.floor(parseFloat(formData.amount || 0) * parseFloat(formData.exchange_rate || 1));
 
         const saveTransactionResult = await createReceiveReceiptAndSave(
             handleSubmitSilent,
@@ -627,7 +550,7 @@ export default function Receive({
                 person_name: formData.receivedFrom,
                 currency: formData.currency,
                 amount: formData.amount,
-                exchange_rate: '1', // ثابت لجميع العملات
+                exchange_rate: formData.exchange_rate || '1',
                 amount_in_iqd: amountInIqd,
                 beneficiary: 'الصندوق النقدي',
                 description: formData.description,
@@ -663,9 +586,11 @@ export default function Receive({
 
     // حساب ما إذا كان النموذج صالحاً للإرسال
     const isFormValid = () => {
+        const isExchangeRateRequired = formData.currency !== 'دينار عراقي';
         return formData.receivedFrom &&
                formData.amount &&
-               formData.currency;
+               formData.currency &&
+               (!isExchangeRateRequired || formData.exchange_rate);
     };
 
     return (
@@ -700,15 +625,7 @@ export default function Receive({
                                 <div className="bg-green-50 rounded-xl p-6">
                                     <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد الحالي</h3>
                                     <p className="text-3xl font-bold text-green-700">
-                                        {formatNumber(Math.floor(balance))} د.ع
-                                    </p>
-                                </div>
-
-                                {/* رصيد الدولار الحالي */}
-                                <div className="bg-blue-50 rounded-xl p-6">
-                                    <h3 className="text-lg font-semibold text-blue-800 mb-2">رصيد الدولار الحالي</h3>
-                                    <p className="text-3xl font-bold text-blue-700">
-                                        ${formatNumber(usdBalance)} USD
+                                        {Math.floor(balance).toLocaleString()} د.ع
                                     </p>
                                 </div>
 
@@ -717,7 +634,7 @@ export default function Receive({
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm font-medium text-gray-700">الرصيد الافتتاحي:</span>
                                         <span className="font-bold text-gray-800">
-                                            {formatNumber(openingBalance > 0 ? Math.floor(openingBalance) : 0)} د.ع
+                                            {openingBalance > 0 ? Math.floor(openingBalance).toLocaleString() : '0'} د.ع
                                         </span>
                                     </div>
                                 </div>
@@ -730,21 +647,21 @@ export default function Receive({
                                 <div className="bg-green-50 rounded-lg p-4">
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm text-green-700">مستلم اليوم:</span>
-                                        <span className="font-bold text-green-800">{formatNumber(todayReport.received_today > 0 ? Math.floor(todayReport.received_today) : 0)} د.ع</span>
+                                        <span className="font-bold text-green-800">{todayReport.received_today > 0 ? Math.floor(todayReport.received_today).toLocaleString() : '0'} د.ع</span>
                                     </div>
                                 </div>
 
                                 <div className="bg-blue-50 rounded-lg p-4">
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm text-blue-700">إجمالي المستلم:</span>
-                                        <span className="font-bold text-blue-800">{formatNumber(todayReport.total_received > 0 ? Math.floor(todayReport.total_received) : 0)} د.ع</span>
+                                        <span className="font-bold text-blue-800">{todayReport.total_received > 0 ? Math.floor(todayReport.total_received).toLocaleString() : '0'} د.ع</span>
                                     </div>
                                 </div>
 
                                 <div className="bg-red-50 rounded-lg p-4">
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm text-red-700">إجمالي المصروف:</span>
-                                        <span className="font-bold text-red-800">{formatNumber(todayReport.total_exchanged > 0 ? Math.floor(todayReport.total_exchanged) : 0)} د.ع</span>
+                                        <span className="font-bold text-red-800">{todayReport.total_exchanged > 0 ? Math.floor(todayReport.total_exchanged).toLocaleString() : '0'} د.ع</span>
                                     </div>
                                 </div>
 
@@ -908,11 +825,11 @@ export default function Receive({
                                             <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                                                 <div className="text-center bg-white p-2 rounded">
                                                     <div className="text-gray-600">الرصيد USD</div>
-                                                    <div className="font-bold text-green-700">${formatNumber(formData.selectedCustomer.current_usd_balance || 0)}</div>
+                                                    <div className="font-bold text-green-700">${formData.selectedCustomer.current_usd_balance || '0.00'}</div>
                                                 </div>
                                                 <div className="text-center bg-white p-2 rounded">
                                                     <div className="text-gray-600">الرصيد IQD</div>
-                                                    <div className="font-bold text-green-700">{formatNumber(formData.selectedCustomer.current_iqd_balance || 0)} د.ع</div>
+                                                    <div className="font-bold text-green-700">{parseInt(formData.selectedCustomer.current_iqd_balance || 0).toLocaleString()} د.ع</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -924,10 +841,10 @@ export default function Receive({
                                         المبلغ: *
                                     </label>
                                     <input
-                                        type="text"
+                                        type="number"
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-right"
                                         placeholder="أدخل المبلغ"
-                                        value={addCommasToInput(formData.amount)}
+                                        value={formData.amount}
                                         onChange={(e) => handleInputChange('amount', e.target.value)}
                                     />
                                 </div>
@@ -950,6 +867,35 @@ export default function Receive({
                                     </select>
                                 </div>
 
+                                {/* حقل سعر الصرف - يُخفى عندما تكون العملة دينار عراقي */}
+                                {formData.currency !== 'دينار عراقي' && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                                            سعر الصرف: *
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.0001"
+                                            min="0"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-right"
+                                            value={formData.exchange_rate}
+                                            onChange={(e) => handleInputChange('exchange_rate', e.target.value)}
+                                            placeholder="أدخل سعر الصرف"
+                                        />
+                                    </div>
+                                )}
+
+                                {/* عرض المبلغ بالدينار العراقي */}
+                                {formData.amount && formData.exchange_rate && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                                            المبلغ بالدينار العراقي:
+                                        </label>
+                                        <div className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-right">
+                                            {Math.floor(parseFloat(formData.amount || 0) * parseFloat(formData.exchange_rate || 0)).toLocaleString()} د.ع
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             {/* وذلك عن (ملاحظات) */}
@@ -1045,7 +991,7 @@ export default function Receive({
                                         <div className="bg-green-50 p-4 rounded-lg">
                                             <h3 className="font-semibold text-green-800">إجمالي المبلغ</h3>
                                             <p className="text-2xl font-bold text-green-700">
-                                                {formatNumber(detailedReportData.summary?.total_amount || 0)} د.ع
+                                                {detailedReportData.summary?.total_amount?.toLocaleString() || '0'} د.ع
                                             </p>
                                         </div>
                                         <div className="bg-blue-50 p-4 rounded-lg">
@@ -1150,11 +1096,12 @@ export default function Receive({
                                             الرصيد الافتتاحي USD
                                         </label>
                                         <input
-                                            type="text"
+                                            type="number"
+                                            step="0.01"
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-right"
                                             placeholder="0.00 (يمكن أن يكون سالب)"
-                                            value={addCommasToInput(newCustomerData.opening_balance_usd)}
-                                            onChange={(e) => setNewCustomerData(prev => ({ ...prev, opening_balance_usd: formatInputNumber(e.target.value) }))}
+                                            value={newCustomerData.opening_balance_usd}
+                                            onChange={(e) => setNewCustomerData(prev => ({ ...prev, opening_balance_usd: e.target.value }))}
                                         />
                                     </div>
 
@@ -1163,11 +1110,12 @@ export default function Receive({
                                             الرصيد الافتتاحي IQD
                                         </label>
                                         <input
-                                            type="text"
+                                            type="number"
+                                            step="1"
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-right"
                                             placeholder="0 (يمكن أن يكون سالب)"
-                                            value={addCommasToInput(newCustomerData.opening_balance_iqd)}
-                                            onChange={(e) => setNewCustomerData(prev => ({ ...prev, opening_balance_iqd: formatInputNumber(e.target.value) }))}
+                                            value={newCustomerData.opening_balance_iqd}
+                                            onChange={(e) => setNewCustomerData(prev => ({ ...prev, opening_balance_iqd: e.target.value }))}
                                         />
                                     </div>
                                 </div>

@@ -92,16 +92,11 @@ class CustomerController extends Controller
             ->limit(10)
             ->get()
             ->map(function ($customer) {
-                // تحديث الأرصدة الحالية قبل الإرجاع
-                $customer->updateBalances();
-
                 return [
                     'id' => $customer->id,
                     'customer_code' => $customer->customer_code,
                     'name' => $customer->name,
                     'phone' => $customer->phone,
-                    'current_iqd_balance' => $customer->current_iqd_balance,
-                    'current_usd_balance' => $customer->current_usd_balance,
                     'remaining_balance' => $customer->remaining_balance
                 ];
             });
@@ -247,9 +242,6 @@ class CustomerController extends Controller
             ->orderBy('created_at', 'desc')
             ->get()
             ->map(function ($customer) {
-                // تحديث الأرصدة الحالية قبل الإرجاع
-                $customer->updateBalances();
-
                 return [
                     'id' => $customer->id,
                     'customer_code' => $customer->customer_code,

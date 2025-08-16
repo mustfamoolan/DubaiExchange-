@@ -4,44 +4,8 @@ import { router } from '@inertiajs/react';
 import ThermalReceipt from '../../Components/ThermalReceipt';
 import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
 
-// دالة لتنسيق الأرقام مع فواصل وإزالة الأصفار الزائدة
-const formatNumber = (value) => {
-    if (!value || isNaN(value)) return '';
-    const num = parseFloat(value);
-    if (num === 0) return '0';
-    // إزالة الأصفار الزائدة وإضافة فواصل
-    return num.toLocaleString('en-US', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2
-    });
-};
-
-// دالة لتنسيق الإدخال أثناء الكتابة
-const formatInputNumber = (value) => {
-    if (!value) return '';
-    // إزالة جميع الأحرف غير الرقمية عدا النقطة
-    const cleaned = value.replace(/[^\d.]/g, '');
-    // إزالة النقاط الإضافية
-    const parts = cleaned.split('.');
-    if (parts.length > 2) {
-        const wholePart = parts[0];
-        const decimalPart = parts.slice(1).join('');
-        return wholePart + '.' + decimalPart;
-    }
-    return cleaned;
-};
-
-// دالة لإضافة فواصل للرقم أثناء العرض
-const addCommasToInput = (value) => {
-    if (!value) return '';
-    const parts = value.split('.');
-    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    return parts.join('.');
-};
-
-export default function ZainCash({ user, currentBalance = 0, currentCashBalance = 0, transactions = [], openingBalance = 0, quickReport = { charges: 0, payments: 0, operations: 0 } }) {
+export default function ZainCash({ user, currentBalance = 0, transactions = [], openingBalance = 0, quickReport = { charges: 0, payments: 0, operations: 0 } }) {
     const [balance, setBalance] = useState(currentBalance);
-    const [cashBalance, setCashBalance] = useState(currentCashBalance);
     const [activeTab, setActiveTab] = useState('charge'); // 'charge' or 'payment'
     const [showDetailedReport, setShowDetailedReport] = useState(false);
     const [todayReport, setTodayReport] = useState({
@@ -109,59 +73,23 @@ export default function ZainCash({ user, currentBalance = 0, currentCashBalance 
     // حساب العمولة التلقائي
     useEffect(() => {
         if (formData.amount) {
-            // إزالة الفواصل قبل التحويل إلى رقم
-            const cleanAmount = formData.amount.replace(/,/g, '');
-            const amount = parseFloat(cleanAmount);
+            const amount = parseFloat(formData.amount);
             if (!isNaN(amount)) {
                 const commission = Math.round(amount * 0.01); // 1% عمولة
-                const formattedCommission = addCommasToInput(commission.toString());
-                setFormData(prev => ({ ...prev, commission: formattedCommission }));
+                setFormData(prev => ({ ...prev, commission: commission.toString() }));
             }
         }
     }, [formData.amount]);
 
-    // تطبيق تنسيق الفواصل عند الانتهاء من الكتابة
-    const handleBlur = (field) => {
-        if (field === 'amount' || field === 'commission') {
-            const value = formData[field];
-            if (value) {
-                const cleanValue = value.replace(/,/g, '');
-                const formattedValue = addCommasToInput(cleanValue);
-                setFormData(prev => ({ ...prev, [field]: formattedValue }));
-            }
-        }
-    };
-
-    // إزالة الفواصل عند بدء الكتابة
-    const handleFocus = (field) => {
-        if (field === 'amount' || field === 'commission') {
-            const value = formData[field];
-            if (value) {
-                const cleanValue = value.replace(/,/g, '');
-                setFormData(prev => ({ ...prev, [field]: cleanValue }));
-            }
-        }
-    };
-
     // تحديث قيم النموذج
     const handleInputChange = (field, value) => {
-        if (field === 'amount' || field === 'commission') {
-            // تنظيف القيمة من الأحرف غير المرغوبة
-            const cleanValue = formatInputNumber(value);
-            setFormData(prev => ({ ...prev, [field]: cleanValue }));
-        } else {
-            // الحقول النصية بدون تنسيق
-            setFormData(prev => ({ ...prev, [field]: value }));
-        }
+        setFormData(prev => ({ ...prev, [field]: value }));
     };
 
     // حساب المبلغ الإجمالي
     const getTotalAmount = () => {
-        // إزالة الفواصل قبل التحويل إلى رقم
-        const cleanAmount = (formData.amount || '').replace(/,/g, '');
-        const cleanCommission = (formData.commission || '').replace(/,/g, '');
-        const amount = parseFloat(cleanAmount) || 0;
-        const commission = parseFloat(cleanCommission) || 0;
+        const amount = parseFloat(formData.amount) || 0;
+        const commission = parseFloat(formData.commission) || 0;
         return amount + commission;
     };
 
@@ -175,8 +103,6 @@ export default function ZainCash({ user, currentBalance = 0, currentCashBalance 
                 method: 'GET',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
                 }
             });
 
@@ -184,23 +110,9 @@ export default function ZainCash({ user, currentBalance = 0, currentCashBalance 
                 const result = await response.json();
                 setDetailedReportData(result.report);
                 return result.report;
-            } else if (response.status === 401) {
-                alert('جلسة العمل منتهية الصلاحية، يرجى تسجيل الدخول مرة أخرى');
-                router.visit('/login');
-                return null;
-            } else {
-                // محاولة قراءة رسالة الخطأ
-                try {
-                    const errorData = await response.json();
-                    alert(errorData.message || 'حدث خطأ أثناء جلب التقرير');
-                } catch {
-                    alert('حدث خطأ أثناء جلب التقرير');
-                }
-                return null;
             }
         } catch (error) {
             console.error('Error fetching detailed report:', error);
-            alert('حدث خطأ في الشبكة أثناء جلب التقرير');
         }
         return null;
     };
@@ -215,9 +127,7 @@ export default function ZainCash({ user, currentBalance = 0, currentCashBalance 
 
     // إرسال المعاملة (حفظ فقط)
     const handleSubmit = async (action) => {
-        // إزالة الفواصل للتحقق من صحة القيمة
-        const cleanAmount = (formData.amount || '').replace(/,/g, '');
-        if (!cleanAmount || parseFloat(cleanAmount) <= 0) {
+        if (!formData.amount || parseFloat(formData.amount) <= 0) {
             alert('يرجى إدخال مبلغ صحيح');
             return;
         }
@@ -225,22 +135,16 @@ export default function ZainCash({ user, currentBalance = 0, currentCashBalance 
         setIsSubmitting(true);
 
         try {
-            // إعداد البيانات مع إزالة الفواصل
-            const dataToSend = {
-                ...formData,
-                amount: (formData.amount || '').replace(/,/g, ''),
-                commission: (formData.commission || '').replace(/,/g, ''),
-                reference_number: referenceNumber
-            };
-
             const response = await fetch(`/zain-cash/${action}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'Accept': 'application/json'
                 },
-                body: JSON.stringify(dataToSend)
+                body: JSON.stringify({
+                    ...formData,
+                    reference_number: referenceNumber
+                })
             });
 
             if (response.ok) {
@@ -248,11 +152,6 @@ export default function ZainCash({ user, currentBalance = 0, currentCashBalance 
 
                 // تحديث الرصيد
                 setBalance(result.new_balance);
-
-                // تحديث الرصيد النقدي
-                if (result.new_cash_balance !== undefined) {
-                    setCashBalance(result.new_cash_balance);
-                }
 
                 // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
                 if (result.updated_report) {
@@ -268,19 +167,10 @@ export default function ZainCash({ user, currentBalance = 0, currentCashBalance 
 
                 alert(`تم ${action === 'charge' ? 'الشحن' : 'الدفع'} بنجاح!`);
                 return { success: true, result };
-            } else if (response.status === 401) {
-                alert('جلسة العمل منتهية الصلاحية، يرجى تسجيل الدخول مرة أخرى');
-                router.visit('/login');
-                return { success: false, error: 'Unauthorized' };
             } else {
-                // محاولة قراءة رسالة الخطأ
-                try {
-                    const error = await response.json();
-                    alert(error.message || 'حدث خطأ');
-                } catch {
-                    alert('حدث خطأ في الخادم');
-                }
-                return { success: false, error: 'Server error' };
+                const error = await response.json();
+                alert(error.message || 'حدث خطأ');
+                return { success: false, error };
             }
         } catch (error) {
             console.error('Error:', error);
@@ -293,9 +183,7 @@ export default function ZainCash({ user, currentBalance = 0, currentCashBalance 
 
     // حفظ وطباعة الفاتورة
     const handleSaveAndPrint = async () => {
-        // إزالة الفواصل للتحقق من صحة القيمة
-        const cleanAmount = (formData.amount || '').replace(/,/g, '');
-        if (!cleanAmount || parseFloat(cleanAmount) <= 0) {
+        if (!formData.amount || parseFloat(formData.amount) <= 0) {
             alert('يرجى إدخال مبلغ صحيح');
             return;
         }
@@ -303,8 +191,8 @@ export default function ZainCash({ user, currentBalance = 0, currentCashBalance 
         const transactionData = {
             transaction_type: activeTab,
             reference_number: referenceNumber,
-            amount: (formData.amount || '').replace(/,/g, ''),
-            commission: (formData.commission || '').replace(/,/g, ''),
+            amount: formData.amount,
+            commission: formData.commission,
             notes: formData.notes,
             customer_phone: null
         };
@@ -372,21 +260,11 @@ export default function ZainCash({ user, currentBalance = 0, currentCashBalance 
                             </div>
 
                             {/* عرض الرصيد */}
-                            <div className="space-y-4 mb-6">
-                                <div className="bg-purple-50 rounded-xl p-6">
-                                    <h3 className="text-lg font-semibold text-purple-800 mb-2">الرصيد المتبقي لزين كاش</h3>
-                                    <p className="text-3xl font-bold text-purple-700">
-                                        {Math.floor(balance).toLocaleString()} د.ع
-                                    </p>
-                                </div>
-
-                                {/* الرصيد النقدي الحالي */}
-                                <div className="bg-green-50 rounded-xl p-6">
-                                    <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد النقدي</h3>
-                                    <p className="text-3xl font-bold text-green-700">
-                                        {Math.floor(cashBalance).toLocaleString()} د.ع
-                                    </p>
-                                </div>
+                            <div className="bg-purple-50 rounded-xl p-6 mb-6">
+                                <h3 className="text-lg font-semibold text-purple-800 mb-2">الرصيد المتبقي</h3>
+                                <p className="text-3xl font-bold text-purple-700">
+                                    {Math.floor(balance).toLocaleString()} د.ع
+                                </p>
                             </div>
 
                             {/* عرض الرصيد الافتتاحي */}
@@ -524,13 +402,11 @@ export default function ZainCash({ user, currentBalance = 0, currentCashBalance 
                                         المبلغ:
                                     </label>
                                     <input
-                                        type="text"
+                                        type="number"
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-right"
                                         placeholder="المبلغ"
                                         value={formData.amount}
                                         onChange={(e) => handleInputChange('amount', e.target.value)}
-                                        onFocus={() => handleFocus('amount')}
-                                        onBlur={() => handleBlur('amount')}
                                     />
                                 </div>
 
@@ -539,13 +415,11 @@ export default function ZainCash({ user, currentBalance = 0, currentCashBalance 
                                         العمولة:
                                     </label>
                                     <input
-                                        type="text"
+                                        type="number"
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-right"
                                         placeholder="العمولة"
                                         value={formData.commission}
                                         onChange={(e) => handleInputChange('commission', e.target.value)}
-                                        onFocus={() => handleFocus('commission')}
-                                        onBlur={() => handleBlur('commission')}
                                     />
                                 </div>
                             </div>

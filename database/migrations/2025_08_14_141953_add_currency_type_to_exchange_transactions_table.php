@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('exchange_transactions', function (Blueprint $table) {
-            $table->string('currency_type', 3)->default('iqd')->after('amount');
+            //
         });
     }
 
@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('exchange_transactions', function (Blueprint $table) {
-            $table->dropColumn('currency_type');
+            //
         });
     }
 };
