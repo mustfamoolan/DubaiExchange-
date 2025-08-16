@@ -237,11 +237,12 @@ class ZainCashController extends Controller
             $commission = $request->commission ?? ZainCashTransaction::calculateCommission($amount, 'payment');
             $totalWithCommission = $amount + $commission;
 
-            // Check if user has sufficient balance (فقط للمبلغ الأساسي)
-            if ($previousBalance < $amount) {
+            // التحقق من الرصيد النقدي المركزي بدلاً من رصيد المصرف
+            $currentCashBalance = CashBalanceService::getCurrentBalance();
+            if ($currentCashBalance < $totalWithCommission) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'الرصيد غير كافي لإجراء هذه العملية'
+                    'message' => 'الرصيد النقدي المركزي غير كافي لإجراء هذه العملية. المطلوب: ' . number_format($totalWithCommission) . ' د.ع، المتوفر: ' . number_format($currentCashBalance) . ' د.ع'
                 ], 400);
             }
 

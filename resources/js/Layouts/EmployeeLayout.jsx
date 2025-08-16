@@ -120,8 +120,8 @@ export default function EmployeeLayout({ children, title = 'منطقة المو�
             </header>
 
             {/* Main Content */}
-            <main className="flex-1 overflow-hidden">
-                <div className="h-full overflow-y-auto">
+            <main className="flex-1 overflow-y-auto">
+                <div className="h-full">
                     <div className="p-3 sm:p-4 md:p-6 lg:p-8">
                         {/* Page Header */}
                         <div className="mb-4 md:mb-6">
@@ -149,7 +149,7 @@ export default function EmployeeLayout({ children, title = 'منطقة المو�
 
                         {/* Page Content */}
                         <div className="bg-white rounded-lg md:rounded-xl shadow-sm border border-gray-200 min-h-[calc(100vh-180px)] md:min-h-[calc(100vh-200px)]">
-                            <div className="p-4 sm:p-6">
+                            <div className="p-4 sm:p-6 overflow-y-auto">
                                 {children}
                             </div>
                         </div>

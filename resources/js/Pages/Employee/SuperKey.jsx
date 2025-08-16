@@ -251,7 +251,7 @@ export default function SuperKey({
 
     return (
         <EmployeeLayout title="سوبر كي">
-            <div className="max-w-7xl mx-auto">
+            <div className="max-w-7xl mx-auto" style={{maxHeight: 'calc(100vh - 200px)', overflowY: 'auto'}}>
                 {/* زر الرجوع */}
                 <div className="mb-6">
                     <button
@@ -531,7 +531,7 @@ export default function SuperKey({
                 {/* نافذة التقرير المفصل */}
                 {showDetailedReport && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-2xl shadow-xl max-w-5xl w-full h-[90vh] flex flex-col">
+                        <div className="bg-white rounded-2xl shadow-xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden">
                             {/* رأس النافذة - ثابت */}
                             <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 px-6 py-4 rounded-t-2xl flex-shrink-0">
                                 <div className="flex justify-between items-center">
@@ -549,7 +549,7 @@ export default function SuperKey({
                             </div>
 
                             {/* محتوى التقرير - قابل للتمرير */}
-                            <div className="flex-1 overflow-y-auto bg-gray-50 p-6" style={{ minHeight: 0 }}>
+                            <div className="flex-1 overflow-y-auto overflow-x-hidden bg-gray-50 p-6" style={{ minHeight: 0, maxHeight: 'calc(90vh - 80px)' }}>
                                 {/* معلومات الموظف */}
                                 <div className="bg-white rounded-xl p-6 mb-6 shadow-sm border">
                                     <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
