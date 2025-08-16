@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import EmployeeLayout from '../../Layouts/EmployeeLayout';
+import EmployeeLayout from '@/Layouts/EmployeeLayout';
 import { router } from '@inertiajs/react';
-import ThermalReceipt from '../../Components/ThermalReceipt';
-import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
+import { useThermalReceipt } from '@/Hooks/useThermalReceipt';
+import ThermalReceipt from '@/Components/ThermalReceipt';
+import { useCentralCashBalance } from '@/Hooks/useCentralCashBalance';
 
 export default function SuperKey({
     user,
@@ -14,7 +15,6 @@ export default function SuperKey({
     quickReport = { charges: 0, payments: 0, operations: 0 }
 }) {
     const [balance, setBalance] = useState(currentBalance);
-    const [cashBalance, setCashBalance] = useState(currentCashBalance); // الرصيد النقدي
     const [activeTab, setActiveTab] = useState('charge'); // 'charge' or 'payment'
     const [showDetailedReport, setShowDetailedReport] = useState(false);
     const [todayReport, setTodayReport] = useState({
@@ -22,6 +22,13 @@ export default function SuperKey({
         payments: quickReport.payments,
         operations: quickReport.operations
     });
+
+    // استخدام hook الرصيد النقدي المركزي
+    const {
+        centralCashBalance,
+        updateBalanceAfterTransaction,
+        fetchCurrentCashBalance
+    } = useCentralCashBalance(currentCashBalance);
 
     // استخدام hook الفواتير الحرارية
     const {
@@ -34,10 +41,10 @@ export default function SuperKey({
         createReceiptAndSave
     } = useThermalReceipt();
 
-        // بيانات النموذج
+    // بيانات النموذج
     const [formData, setFormData] = useState({
         amount: '',
-        commission: '0', // العمولة تبدأ بصفر
+        commission: '0',
         notes: ''
     });
 
@@ -99,7 +106,7 @@ export default function SuperKey({
     const getTotalAmount = () => {
         const amount = parseFloat(formData.amount) || 0;
         const commission = parseFloat(formData.commission) || 0;
-        return amount + commission;
+        return commission > 0 ? amount + commission : amount;
     };
 
     // إضافة state للتقرير المفصل
@@ -134,7 +141,7 @@ export default function SuperKey({
         }
     };
 
-    // إرسال المعاملة
+    // إرسال المعاملة (حفظ فقط)
     const handleSubmit = async (action) => {
         if (!formData.amount || parseFloat(formData.amount) <= 0) {
             alert('يرجى إدخال مبلغ صحيح');
@@ -156,15 +163,15 @@ export default function SuperKey({
                 })
             });
 
-            if (response.ok) {
-                const result = await response.json();
+            const result = await response.json();
 
+            if (response.ok && result.success) {
                 // تحديث الرصيد
                 setBalance(result.new_balance);
 
-                // تحديث الرصيد النقدي إذا كان متوفراً
+                // تحديث الرصيد النقدي المركزي
                 if (result.new_cash_balance !== undefined) {
-                    setCashBalance(result.new_cash_balance);
+                    updateBalanceAfterTransaction(result.new_cash_balance);
                 }
 
                 // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
@@ -191,16 +198,15 @@ export default function SuperKey({
                 const timeStr = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
                 setReferenceNumber(`SUP${dateStr}${timeStr}`);
 
-                alert(`تم ${action === 'charge' ? 'الشحن' : 'الدفع'} بنجاح!`);
+                alert(result.message);
                 return { success: true, result };
             } else {
-                const error = await response.json();
-                alert(error.message || 'حدث خطأ');
-                return { success: false, error };
+                alert(result.message || 'حدث خطأ أثناء العملية');
+                return { success: false, error: result.message };
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('حدث خطأ في الشبكة');
+            alert('حدث خطأ في الاتصال بالخادم');
             return { success: false, error };
         } finally {
             setIsSubmitting(false);
@@ -232,6 +238,15 @@ export default function SuperKey({
         if (result.success) {
             // النجاح - الفاتورة ستظهر تلقائياً
         }
+    };
+
+    // إعادة تعيين النموذج
+    const resetForm = () => {
+        setFormData({
+            amount: '',
+            commission: '0',
+            notes: ''
+        });
     };
 
     return (
@@ -270,27 +285,41 @@ export default function SuperKey({
                             </div>
 
                             {/* عرض الرصيد */}
-                            <div className="bg-yellow-50 rounded-xl p-6 mb-6">
-                                <h3 className="text-lg font-semibold text-yellow-800 mb-2">رصيد سوبر كي</h3>
-                                <p className="text-3xl font-bold text-yellow-700">
-                                    {Math.floor(balance).toLocaleString()} د.ع
-                                </p>
-                            </div>
+                            <div className="space-y-4 mb-6">
+                                {/* الرصيد المتبقي لسوبر كي */}
+                                <div className="bg-yellow-50 rounded-xl p-6">
+                                    <h3 className="text-lg font-semibold text-yellow-800 mb-2">الرصيد المتبقي لسوبر كي</h3>
+                                    <p className="text-3xl font-bold text-yellow-700">
+                                        {Math.floor(balance).toLocaleString('en-US')} د.ع
+                                    </p>
+                                </div>
 
-                            {/* عرض الرصيد النقدي الحالي */}
-                            <div className="bg-green-50 rounded-xl p-6 mb-6">
-                                <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد النقدي الحالي</h3>
-                                <p className="text-3xl font-bold text-green-700">
-                                    {Math.floor(cashBalance).toLocaleString()} د.ع
-                                </p>
+                                {/* الرصيد النقدي المركزي */}
+                                <div className="bg-green-50 rounded-xl p-6">
+                                    <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد النقدي المركزي</h3>
+                                    <p className="text-3xl font-bold text-green-700">
+                                        {Math.floor(centralCashBalance).toLocaleString('en-US')} د.ع
+                                    </p>
+                                </div>
                             </div>
 
                             {/* عرض الرصيد الافتتاحي */}
-                            <div className="bg-gray-50 rounded-xl p-4 mb-6">
-                                <h4 className="text-sm font-semibold text-gray-700 mb-1">الرصيد الافتتاحي</h4>
-                                <p className="text-lg font-bold text-gray-800">
-                                    {openingBalance > 0 ? Math.floor(openingBalance).toLocaleString() : '0'} د.ع
-                                </p>
+                            <div className="space-y-3 mb-6">
+                                <h4 className="text-lg font-semibold text-gray-800">الرصيد الافتتاحي</h4>
+                                <div className="bg-gray-50 rounded-xl p-4">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-sm font-medium text-gray-700">سوبر كي:</span>
+                                        <span className="font-bold text-gray-800">
+                                            {openingBalance > 0 ? Math.floor(openingBalance).toLocaleString('en-US') : '0'} د.ع
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm font-medium text-gray-700">نقدي:</span>
+                                        <span className="font-bold text-gray-800">
+                                            {openingCashBalance > 0 ? Math.floor(openingCashBalance).toLocaleString('en-US') : '0'} د.ع
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
 
                             {/* تقرير اليوم */}
@@ -300,14 +329,14 @@ export default function SuperKey({
                                 <div className="bg-red-50 rounded-lg p-4">
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm text-red-700">شحن:</span>
-                                        <span className="font-bold text-red-800">{todayReport.charges > 0 ? Math.floor(todayReport.charges).toLocaleString() : '0'} د.ع</span>
+                                        <span className="font-bold text-red-800">{todayReport.charges > 0 ? Math.floor(todayReport.charges).toLocaleString('en-US') : '0'} د.ع</span>
                                     </div>
                                 </div>
 
                                 <div className="bg-green-50 rounded-lg p-4">
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm text-green-700">دفع:</span>
-                                        <span className="font-bold text-green-800">{todayReport.payments > 0 ? Math.floor(todayReport.payments).toLocaleString() : '0'} د.ع</span>
+                                        <span className="font-bold text-green-800">{todayReport.payments > 0 ? Math.floor(todayReport.payments).toLocaleString('en-US') : '0'} د.ع</span>
                                     </div>
                                 </div>
 
@@ -457,7 +486,7 @@ export default function SuperKey({
                                     <span className={`text-2xl font-bold ${
                                         activeTab === 'charge' ? 'text-red-700' : 'text-green-700'
                                     }`}>
-                                        {getTotalAmount() > 0 ? Math.floor(getTotalAmount()).toLocaleString() : '0'} د.ع
+                                        {getTotalAmount() > 0 ? Math.floor(getTotalAmount()).toLocaleString('en-US') : '0'} د.ع
                                     </span>
                                 </div>
                             </div>
@@ -502,9 +531,9 @@ export default function SuperKey({
                 {/* نافذة التقرير المفصل */}
                 {showDetailedReport && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-2xl shadow-xl max-w-5xl w-full max-h-[95vh] overflow-y-auto">
-                            {/* رأس النافذة */}
-                            <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 px-6 py-4 rounded-t-2xl">
+                        <div className="bg-white rounded-2xl shadow-xl max-w-5xl w-full h-[90vh] flex flex-col">
+                            {/* رأس النافذة - ثابت */}
+                            <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 px-6 py-4 rounded-t-2xl flex-shrink-0">
                                 <div className="flex justify-between items-center">
                                     <h2 className="text-xl font-bold text-white flex items-center">
                                         <span className="text-2xl mr-3">📊</span>
@@ -519,8 +548,8 @@ export default function SuperKey({
                                 </div>
                             </div>
 
-                            {/* محتوى التقرير */}
-                            <div className="p-6 bg-gray-50">
+                            {/* محتوى التقرير - قابل للتمرير */}
+                            <div className="flex-1 overflow-y-auto bg-gray-50 p-6" style={{ minHeight: 0 }}>
                                 {/* معلومات الموظف */}
                                 <div className="bg-white rounded-xl p-6 mb-6 shadow-sm border">
                                     <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
@@ -559,7 +588,7 @@ export default function SuperKey({
                                             </div>
                                             <h4 className="text-sm font-semibold text-blue-700 mb-2">الرصيد الافتتاحي</h4>
                                             <p className="text-2xl font-bold text-blue-800">
-                                                {detailedReportData ? Math.floor(detailedReportData.opening_balance).toLocaleString() : '0'}
+                                                {detailedReportData ? Math.floor(detailedReportData.opening_balance).toLocaleString('en-US') : '0'}
                                             </p>
                                             <p className="text-xs text-blue-600 mt-1">د.ع</p>
                                         </div>
@@ -573,7 +602,7 @@ export default function SuperKey({
                                             </div>
                                             <h4 className="text-sm font-semibold text-yellow-700 mb-2">رصيد سوبر كي</h4>
                                             <p className="text-2xl font-bold text-yellow-800">
-                                                {detailedReportData ? Math.floor(detailedReportData.current_balance).toLocaleString() : Math.floor(balance).toLocaleString()}
+                                                {detailedReportData ? Math.floor(detailedReportData.current_balance).toLocaleString('en-US') : Math.floor(balance).toLocaleString('en-US')}
                                             </p>
                                             <p className="text-xs text-yellow-600 mt-1">د.ع</p>
                                         </div>
@@ -609,7 +638,7 @@ export default function SuperKey({
                                                 <div className="flex justify-between items-center">
                                                     <span className="text-sm text-red-600">إجمالي المبلغ:</span>
                                                     <span className="font-bold text-red-800 text-lg">
-                                                        {detailedReportData ? Math.floor(detailedReportData.total_charges).toLocaleString() : Math.floor(todayReport.charges).toLocaleString()} د.ع
+                                                        {detailedReportData ? Math.floor(detailedReportData.total_charges).toLocaleString('en-US') : Math.floor(todayReport.charges).toLocaleString('en-US')} د.ع
                                                     </span>
                                                 </div>
                                             </div>
@@ -637,7 +666,7 @@ export default function SuperKey({
                                                 <div className="flex justify-between items-center">
                                                     <span className="text-sm text-green-600">إجمالي المبلغ:</span>
                                                     <span className="font-bold text-green-800 text-lg">
-                                                        {detailedReportData ? Math.floor(detailedReportData.total_payments).toLocaleString() : Math.floor(todayReport.payments).toLocaleString()} د.ع
+                                                        {detailedReportData ? Math.floor(detailedReportData.total_payments).toLocaleString('en-US') : Math.floor(todayReport.payments).toLocaleString('en-US')} د.ع
                                                     </span>
                                                 </div>
                                             </div>
@@ -664,7 +693,7 @@ export default function SuperKey({
                                     <div className="bg-yellow-50 rounded-lg p-6">
                                         <div className="text-center">
                                             <p className="text-3xl font-bold text-yellow-800">
-                                                {detailedReportData ? Math.floor(detailedReportData.total_commission).toLocaleString() : Math.floor((todayReport.charges + todayReport.payments) * 0.01).toLocaleString()} د.ع
+                                                {detailedReportData ? Math.floor(detailedReportData.total_commission).toLocaleString('en-US') : Math.floor((todayReport.charges + todayReport.payments) * 0.01).toLocaleString('en-US')} د.ع
                                             </p>
                                         </div>
                                     </div>
@@ -690,7 +719,7 @@ export default function SuperKey({
             <ThermalReceipt
                 show={showReceipt}
                 receiptData={receiptData}
-                onClose={() => setShowReceipt(false)}
+                onClose={closeReceipt}
                 onPrint={printReceipt}
             />
         </EmployeeLayout>

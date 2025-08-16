@@ -3,6 +3,7 @@ import EmployeeLayout from '../../Layouts/EmployeeLayout';
 import { router } from '@inertiajs/react';
 import ThermalReceipt from '../../Components/ThermalReceipt';
 import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
+import { useCentralCashBalance } from '../../Hooks/useCentralCashBalance';
 
 export default function RafidainBank({
     user,
@@ -14,7 +15,6 @@ export default function RafidainBank({
     quickReport = { charges: 0, payments: 0, operations: 0 }
 }) {
     const [balance, setBalance] = useState(currentBalance);
-    const [cashBalance, setCashBalance] = useState(currentCashBalance); // الرصيد النقدي
     const [activeTab, setActiveTab] = useState('charge'); // 'charge' or 'payment'
     const [showDetailedReport, setShowDetailedReport] = useState(false);
     const [todayReport, setTodayReport] = useState({
@@ -22,6 +22,13 @@ export default function RafidainBank({
         payments: quickReport.payments,
         operations: quickReport.operations
     });
+
+    // استخدام hook الرصيد النقدي المركزي
+    const {
+        centralCashBalance,
+        updateBalanceAfterTransaction,
+        fetchCurrentCashBalance
+    } = useCentralCashBalance(currentCashBalance);
 
     // استخدام hook الفواتير الحرارية
     const {
@@ -99,7 +106,7 @@ export default function RafidainBank({
     const getTotalAmount = () => {
         const amount = parseFloat(formData.amount) || 0;
         const commission = parseFloat(formData.commission) || 0;
-        return amount + commission;
+        return commission > 0 ? amount + commission : amount;
     };
 
     // إضافة state للتقرير المفصل
@@ -162,9 +169,9 @@ export default function RafidainBank({
                 // تحديث الرصيد
                 setBalance(result.new_balance);
 
-                // تحديث الرصيد النقدي إذا كان متوفراً
+                // تحديث الرصيد النقدي المركزي
                 if (result.new_cash_balance !== undefined) {
-                    setCashBalance(result.new_cash_balance);
+                    updateBalanceAfterTransaction(result.new_cash_balance);
                 }
 
                 // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
@@ -279,15 +286,15 @@ export default function RafidainBank({
                                 <div className="bg-green-50 rounded-xl p-6">
                                     <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد المتبقي لمصرف الرافدين</h3>
                                     <p className="text-3xl font-bold text-green-700">
-                                        {Math.floor(balance).toLocaleString()} د.ع
+                                        {Math.floor(balance).toLocaleString('en-US')} د.ع
                                     </p>
                                 </div>
 
-                                {/* الرصيد النقدي الحالي */}
-                                <div className="bg-blue-50 rounded-xl p-6">
-                                    <h3 className="text-lg font-semibold text-blue-800 mb-2">الرصيد النقدي الحالي</h3>
-                                    <p className="text-3xl font-bold text-blue-700">
-                                        {Math.floor(cashBalance).toLocaleString()} د.ع
+                                {/* الرصيد النقدي المركزي */}
+                                <div className="bg-green-50 rounded-xl p-6">
+                                    <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد النقدي المركزي</h3>
+                                    <p className="text-3xl font-bold text-green-700">
+                                        {!isNaN(centralCashBalance) ? Math.floor(centralCashBalance).toLocaleString('en-US') : '0'} د.ع
                                     </p>
                                 </div>
                             </div>
@@ -299,13 +306,7 @@ export default function RafidainBank({
                                     <div className="flex justify-between items-center mb-2">
                                         <span className="text-sm font-medium text-gray-700">مصرف الرافدين:</span>
                                         <span className="font-bold text-gray-800">
-                                            {openingBalance > 0 ? Math.floor(openingBalance).toLocaleString() : '0'} د.ع
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between items-center">
-                                        <span className="text-sm font-medium text-gray-700">نقدي:</span>
-                                        <span className="font-bold text-gray-800">
-                                            {openingCashBalance > 0 ? Math.floor(openingCashBalance).toLocaleString() : '0'} د.ع
+                                            {openingBalance > 0 ? Math.floor(openingBalance).toLocaleString('en-US') : '0'} د.ع
                                         </span>
                                     </div>
                                 </div>
@@ -318,14 +319,14 @@ export default function RafidainBank({
                                 <div className="bg-red-50 rounded-lg p-4">
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm text-red-700">شحن:</span>
-                                        <span className="font-bold text-red-800">{todayReport.charges > 0 ? Math.floor(todayReport.charges).toLocaleString() : '0'} د.ع</span>
+                                        <span className="font-bold text-red-800">{todayReport.charges > 0 ? Math.floor(todayReport.charges).toLocaleString('en-US') : '0'} د.ع</span>
                                     </div>
                                 </div>
 
                                 <div className="bg-green-50 rounded-lg p-4">
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm text-green-700">دفع:</span>
-                                        <span className="font-bold text-green-800">{todayReport.payments > 0 ? Math.floor(todayReport.payments).toLocaleString() : '0'} د.ع</span>
+                                        <span className="font-bold text-green-800">{todayReport.payments > 0 ? Math.floor(todayReport.payments).toLocaleString('en-US') : '0'} د.ع</span>
                                     </div>
                                 </div>
 
@@ -475,7 +476,7 @@ export default function RafidainBank({
                                     <span className={`text-2xl font-bold ${
                                         activeTab === 'charge' ? 'text-red-700' : 'text-green-700'
                                     }`}>
-                                        {getTotalAmount() > 0 ? Math.floor(getTotalAmount()).toLocaleString() : '0'} د.ع
+                                        {getTotalAmount() > 0 ? Math.floor(getTotalAmount()).toLocaleString('en-US') : '0'} د.ع
                                     </span>
                                 </div>
                             </div>
@@ -577,7 +578,7 @@ export default function RafidainBank({
                                             </div>
                                             <h4 className="text-sm font-semibold text-blue-700 mb-2">الرصيد الافتتاحي</h4>
                                             <p className="text-2xl font-bold text-blue-800">
-                                                {detailedReportData ? Math.floor(detailedReportData.opening_balance).toLocaleString() : '0'}
+                                                {detailedReportData ? Math.floor(detailedReportData.opening_balance).toLocaleString('en-US') : '0'}
                                             </p>
                                             <p className="text-xs text-blue-600 mt-1">د.ع</p>
                                         </div>
@@ -591,7 +592,7 @@ export default function RafidainBank({
                                             </div>
                                             <h4 className="text-sm font-semibold text-green-700 mb-2">الرصيد المتبقي</h4>
                                             <p className="text-2xl font-bold text-green-800">
-                                                {detailedReportData ? Math.floor(detailedReportData.current_balance).toLocaleString() : Math.floor(balance).toLocaleString()}
+                                                {detailedReportData ? Math.floor(detailedReportData.current_balance).toLocaleString('en-US') : Math.floor(balance).toLocaleString('en-US')}
                                             </p>
                                             <p className="text-xs text-green-600 mt-1">د.ع</p>
                                         </div>
@@ -627,7 +628,7 @@ export default function RafidainBank({
                                                 <div className="flex justify-between items-center">
                                                     <span className="text-sm text-red-600">إجمالي المبلغ:</span>
                                                     <span className="font-bold text-red-800 text-lg">
-                                                        {detailedReportData ? Math.floor(detailedReportData.total_charges).toLocaleString() : Math.floor(todayReport.charges).toLocaleString()} د.ع
+                                                        {detailedReportData ? Math.floor(detailedReportData.total_charges).toLocaleString('en-US') : Math.floor(todayReport.charges).toLocaleString('en-US')} د.ع
                                                     </span>
                                                 </div>
                                             </div>
@@ -655,7 +656,7 @@ export default function RafidainBank({
                                                 <div className="flex justify-between items-center">
                                                     <span className="text-sm text-green-600">إجمالي المبلغ:</span>
                                                     <span className="font-bold text-green-800 text-lg">
-                                                        {detailedReportData ? Math.floor(detailedReportData.total_payments).toLocaleString() : Math.floor(todayReport.payments).toLocaleString()} د.ع
+                                                        {detailedReportData ? Math.floor(detailedReportData.total_payments).toLocaleString('en-US') : Math.floor(todayReport.payments).toLocaleString('en-US')} د.ع
                                                     </span>
                                                 </div>
                                             </div>
@@ -682,7 +683,7 @@ export default function RafidainBank({
                                     <div className="bg-yellow-50 rounded-lg p-6">
                                         <div className="text-center">
                                             <p className="text-3xl font-bold text-yellow-800">
-                                                {detailedReportData ? Math.floor(detailedReportData.total_commission).toLocaleString() : Math.floor((todayReport.charges + todayReport.payments) * 0.01).toLocaleString()} د.ع
+                                                {detailedReportData ? Math.floor(detailedReportData.total_commission).toLocaleString('en-US') : Math.floor((todayReport.charges + todayReport.payments) * 0.01).toLocaleString('en-US')} د.ع
                                             </p>
                                         </div>
                                     </div>

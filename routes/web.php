@@ -252,6 +252,10 @@ Route::prefix('employee')->group(function () {
     Route::get('/rafidain-bank', [RafidainBankController::class, 'index'])->name('employee.rafidain-bank');
     Route::get('/zain-cash', [ZainCashController::class, 'index'])->name('employee.zain-cash');
     Route::get('/super-key', [SuperKeyController::class, 'index'])->name('employee.super-key');
+    Route::post('/super-key/charge', [SuperKeyController::class, 'charge'])->name('super-key.charge');
+    Route::post('/super-key/payment', [SuperKeyController::class, 'payment'])->name('super-key.payment');
+    Route::get('/super-key/transactions', [SuperKeyController::class, 'getTransactions'])->name('super-key.transactions');
+    Route::get('/super-key/detailed-report', [SuperKeyController::class, 'getDetailedReport'])->name('super-key.detailed-report');
     Route::get('/travelers', [EmployeeController::class, 'travelers'])->name('employee.travelers');
     Route::get('/balance', [EmployeeController::class, 'balance'])->name('employee.balance');
     Route::get('/transactions', [EmployeeController::class, 'transactions'])->name('employee.transactions');
