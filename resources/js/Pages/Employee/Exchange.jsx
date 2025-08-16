@@ -55,6 +55,9 @@ export default function Exchange({
         notes: ''
     });
 
+    // إضافة حالة لنوع الصرف
+    const [exchangeType, setExchangeType] = useState('normal'); // 'normal' للصرف العادي, 'customer' للصرف لعميل
+
     // حالات البحث عن العملاء
     const [searchQuery, setSearchQuery] = useState('');
     const [customers, setCustomers] = useState([]);
@@ -455,17 +458,23 @@ export default function Exchange({
             return;
         }
 
+        // التحقق من وجود مستلم في حالة الصرف لعميل
+        if (exchangeType === 'customer' && !formData.paidTo && !formData.selectedCustomer) {
+            alert('يرجى اختيار عميل أو إدخال اسم المستلم');
+            return;
+        }
+
         const saveTransactionResult = await createExchangeReceiptAndSave(
             handleSubmitSilent,
             {
                 reference_number: formData.invoiceNumber,
                 employee_name: user?.name || 'الموظف الحالي',
-                person_name: formData.paidTo || 'غير محدد',
+                person_name: formData.selectedCustomer ? formData.selectedCustomer.name : (formData.paidTo || 'غير محدد'),
                 currency: 'دينار عراقي',
                 amount: formData.amount,
                 exchange_rate: '1',
                 amount_in_iqd: parseFloat(formData.amount),
-                beneficiary: formData.paidTo || 'غير محدد',
+                beneficiary: formData.selectedCustomer ? formData.selectedCustomer.name : (formData.paidTo || 'غير محدد'),
                 description: formData.description,
                 notes: formData.notes || ''
             },
@@ -583,6 +592,35 @@ export default function Exchange({
                                 <h1 className="text-2xl font-bold text-gray-900">سند صرف</h1>
                             </div>
 
+                            {/* أزرار اختيار نوع الصرف */}
+                            <div className="flex mb-6">
+                                <button
+                                    onClick={() => {
+                                        setExchangeType('normal');
+                                        setFormData(prev => ({ ...prev, paidTo: '', selectedCustomer: null }));
+                                        setSearchQuery('');
+                                        setShowCustomerDropdown(false);
+                                    }}
+                                    className={`flex-1 py-3 px-6 rounded-r-lg font-semibold transition-colors duration-200 ${
+                                        exchangeType === 'normal'
+                                            ? 'bg-red-500 text-white'
+                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                >
+                                    صرف عادي
+                                </button>
+                                <button
+                                    onClick={() => setExchangeType('customer')}
+                                    className={`flex-1 py-3 px-6 rounded-l-lg font-semibold transition-colors duration-200 ${
+                                        exchangeType === 'customer'
+                                            ? 'bg-red-500 text-white'
+                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
+                                >
+                                    صرف لعميل
+                                </button>
+                            </div>
+
                             {/* الوقت ورقم الفاتورة */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                                 <div>
@@ -650,113 +688,131 @@ export default function Exchange({
                                 />
                             </div>
 
-                            {/* صُرف للسيد */}
-                            <div className="mb-6 relative">
-                                <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
-                                    صُرف للسيد: *
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type="text"
-                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-right"
-                                        placeholder="ابحث عن عميل أو أدخل اسم جديد..."
-                                        value={searchQuery}
-                                        onChange={(e) => handleCustomerSearch(e.target.value)}
-                                        onFocus={() => {
-                                            if (customers.length > 0 && searchQuery) {
-                                                setShowCustomerDropdown(true);
-                                            }
-                                        }}
-                                    />
-                                    {isLoadingCustomers && (
-                                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                                            <div className="animate-spin h-4 w-4 border-2 border-red-500 border-t-transparent rounded-full"></div>
-                                        </div>
-                                    )}
-                                    {formData.selectedCustomer && (
-                                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
-                                            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* قائمة منسدلة للعملاء */}
-                                {showCustomerDropdown && (
-                                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                                        {filteredCustomers.length > 0 ? (
-                                            <>
-                                                {filteredCustomers.map((customer) => (
-                                                    <div
-                                                        key={customer.id}
-                                                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 text-right"
-                                                        onClick={() => handleSelectCustomer(customer)}
-                                                    >
-                                                        <div className="flex justify-between items-center">
-                                                            <div className="text-left">
-                                                                <span className="text-xs text-gray-500">{customer.customer_code}</span>
-                                                            </div>
-                                                            <div>
-                                                                <div className="font-medium text-gray-900">{customer.name}</div>
-                                                                <div className="text-sm text-gray-600">{customer.phone}</div>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                                {searchQuery && !filteredCustomers.some(c => c.name.toLowerCase() === searchQuery.toLowerCase()) && (
-                                                    <div
-                                                        className="px-4 py-3 bg-red-50 hover:bg-red-100 cursor-pointer border-t border-red-200 text-center text-red-700 font-medium"
-                                                        onClick={handleShowAddCustomer}
-                                                    >
-                                                        <svg className="w-4 h-4 inline-block ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                                        </svg>
-                                                        إضافة عميل جديد: "{searchQuery}"
-                                                    </div>
-                                                )}
-                                            </>
-                                        ) : searchQuery ? (
-                                            <div
-                                                className="px-4 py-3 bg-red-50 hover:bg-red-100 cursor-pointer text-center text-red-700 font-medium"
-                                                onClick={handleShowAddCustomer}
-                                            >
-                                                <svg className="w-4 h-4 inline-block ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                                                </svg>
-                                                إضافة عميل جديد: "{searchQuery}"
+                            {/* صُرف للسيد - يظهر فقط في حالة الصرف لعميل */}
+                            {exchangeType === 'customer' && (
+                                <div className="mb-6 relative">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                                        صُرف للسيد: *
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-right"
+                                            placeholder="ابحث عن عميل أو أدخل اسم جديد..."
+                                            value={searchQuery}
+                                            onChange={(e) => handleCustomerSearch(e.target.value)}
+                                            onFocus={() => {
+                                                if (customers.length > 0 && searchQuery) {
+                                                    setShowCustomerDropdown(true);
+                                                }
+                                            }}
+                                        />
+                                        {isLoadingCustomers && (
+                                            <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                                                <div className="animate-spin h-4 w-4 border-2 border-red-500 border-t-transparent rounded-full"></div>
                                             </div>
-                                        ) : (
-                                            <div className="px-4 py-3 text-center text-gray-500">
-                                                لا توجد عملاء
+                                        )}
+                                        {formData.selectedCustomer && (
+                                            <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                                                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
                                             </div>
                                         )}
                                     </div>
-                                )}
 
-                                {/* عرض معلومات العميل المختار */}
-                                {formData.selectedCustomer && (
-                                    <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg text-right">
-                                        <div className="flex justify-between items-center">
-                                            <div className="text-left">
-                                                <span className="text-xs font-medium text-red-700">{formData.selectedCustomer.customer_code}</span>
+                                    {/* قائمة منسدلة للعملاء */}
+                                    {showCustomerDropdown && (
+                                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                                            {filteredCustomers.length > 0 ? (
+                                                <>
+                                                    {filteredCustomers.map((customer) => (
+                                                        <div
+                                                            key={customer.id}
+                                                            className="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 text-right"
+                                                            onClick={() => handleSelectCustomer(customer)}
+                                                        >
+                                                            <div className="flex justify-between items-center">
+                                                                <div className="text-left">
+                                                                    <span className="text-xs text-gray-500">{customer.customer_code}</span>
+                                                                </div>
+                                                                <div>
+                                                                    <div className="font-medium text-gray-900">{customer.name}</div>
+                                                                    <div className="text-sm text-gray-600">{customer.phone}</div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    {searchQuery && !filteredCustomers.some(c => c.name.toLowerCase() === searchQuery.toLowerCase()) && (
+                                                        <div
+                                                            className="px-4 py-3 bg-red-50 hover:bg-red-100 cursor-pointer border-t border-red-200 text-center text-red-700 font-medium"
+                                                            onClick={handleShowAddCustomer}
+                                                        >
+                                                            <svg className="w-4 h-4 inline-block ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                            </svg>
+                                                            إضافة عميل جديد: "{searchQuery}"
+                                                        </div>
+                                                    )}
+                                                </>
+                                            ) : searchQuery ? (
+                                                <div
+                                                    className="px-4 py-3 bg-red-50 hover:bg-red-100 cursor-pointer text-center text-red-700 font-medium"
+                                                    onClick={handleShowAddCustomer}
+                                                >
+                                                    <svg className="w-4 h-4 inline-block ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                    </svg>
+                                                    إضافة عميل جديد: "{searchQuery}"
+                                                </div>
+                                            ) : (
+                                                <div className="px-4 py-3 text-center text-gray-500">
+                                                    لا توجد عملاء
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* عرض معلومات العميل المختار */}
+                                    {formData.selectedCustomer && (
+                                        <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg text-right">
+                                            <div className="flex justify-between items-center">
+                                                <div className="text-left">
+                                                    <span className="text-xs font-medium text-red-700">{formData.selectedCustomer.customer_code}</span>
+                                                </div>
+                                                <div>
+                                                    <div className="font-medium text-red-900">{formData.selectedCustomer.name}</div>
+                                                    <div className="text-sm text-red-700">{formData.selectedCustomer.phone}</div>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <div className="font-medium text-red-900">{formData.selectedCustomer.name}</div>
-                                                <div className="text-sm text-red-700">{formData.selectedCustomer.phone}</div>
+                                            <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                                                <div className="text-center bg-white p-2 rounded">
+                                                    <div className="text-gray-600">الرصيد USD</div>
+                                                    <div className="font-bold text-red-700">${formData.selectedCustomer.current_usd_balance || '0.00'}</div>
+                                                </div>
+                                                <div className="text-center bg-white p-2 rounded">
+                                                    <div className="text-gray-600">الرصيد IQD</div>
+                                                    <div className="font-bold text-red-700">{parseInt(formData.selectedCustomer.current_iqd_balance || 0).toLocaleString()} د.ع</div>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                                            <div className="text-center bg-white p-2 rounded">
-                                                <div className="text-gray-600">الرصيد USD</div>
-                                                <div className="font-bold text-red-700">${formData.selectedCustomer.current_usd_balance || '0.00'}</div>
-                                            </div>
-                                            <div className="text-center bg-white p-2 rounded">
-                                                <div className="text-gray-600">الرصيد IQD</div>
-                                                <div className="font-bold text-red-700">{parseInt(formData.selectedCustomer.current_iqd_balance || 0).toLocaleString()} د.ع</div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* حقل اسم المستلم للصرف العادي */}
+                            {exchangeType === 'normal' && (
+                                <div className="mb-6">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                                        صُرف للسيد: (اختياري)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-right"
+                                        placeholder="اسم المستلم (اختياري)..."
+                                        value={formData.paidTo}
+                                        onChange={(e) => handleInputChange('paidTo', e.target.value)}
+                                    />
+                                </div>
+                            )}
 
                             {/* ملاحظات إضافية */}
                             <div className="mb-8">
@@ -776,7 +832,7 @@ export default function Exchange({
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <button
                                     onClick={handleSaveAndPrint}
-                                    disabled={isSubmitting || !formData.amount || !formData.description}
+                                    disabled={isSubmitting || !formData.amount || !formData.description || (exchangeType === 'customer' && !formData.paidTo && !formData.selectedCustomer)}
                                     className="bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-xl transition-colors duration-200 flex items-center justify-center"
                                 >
                                     <span className="ml-2">🖨️</span>
@@ -784,7 +840,7 @@ export default function Exchange({
                                 </button>
                                 <button
                                     onClick={handleSave}
-                                    disabled={isSubmitting || !formData.amount || !formData.description}
+                                    disabled={isSubmitting || !formData.amount || !formData.description || (exchangeType === 'customer' && !formData.paidTo && !formData.selectedCustomer)}
                                     className="bg-red-500 hover:bg-red-600 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-xl transition-colors duration-200 flex items-center justify-center"
                                 >
                                     <span className="ml-2">💾</span>
