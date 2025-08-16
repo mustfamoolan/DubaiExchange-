@@ -31,7 +31,7 @@ export default function Buy({
         currentTime: new Date().toLocaleString('ar-EG'),
         dollarAmount: '',
         exchangeRate: exchangeRate, // سعر الصرف من قاعدة البيانات
-        commission: '',
+        commission: '0', // العمولة تبدأ بصفر
         notes: '',
         employeeName: user?.name || 'الموظف الحالي'
     });
@@ -89,18 +89,18 @@ export default function Buy({
         setFormData(prev => ({ ...prev, documentNumber: referenceNumber }));
     }, [referenceNumber]);
 
-    // حساب العمولة التلقائي
-    useEffect(() => {
-        if (formData.dollarAmount && formData.exchangeRate) {
-            const dollarAmount = parseFloat(formData.dollarAmount);
-            const exchangeRate = parseFloat(formData.exchangeRate);
-            if (!isNaN(dollarAmount) && !isNaN(exchangeRate)) {
-                const iqd_amount = dollarAmount * exchangeRate;
-                const commission = Math.round(iqd_amount * 0.01); // 1% عمولة
-                setFormData(prev => ({ ...prev, commission: commission.toString() }));
-            }
-        }
-    }, [formData.dollarAmount, formData.exchangeRate]);
+    // حساب العمولة التلقائي - تم إلغاؤه ليبدأ بصفر
+    // useEffect(() => {
+    //     if (formData.dollarAmount && formData.exchangeRate) {
+    //         const dollarAmount = parseFloat(formData.dollarAmount);
+    //         const exchangeRate = parseFloat(formData.exchangeRate);
+    //         if (!isNaN(dollarAmount) && !isNaN(exchangeRate)) {
+    //             const iqd_amount = dollarAmount * exchangeRate;
+    //             const commission = Math.round(iqd_amount * 0.01); // 1% عمولة
+    //             setFormData(prev => ({ ...prev, commission: commission.toString() }));
+    //         }
+    //     }
+    // }, [formData.dollarAmount, formData.exchangeRate]);
 
     const handleInputChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -174,7 +174,7 @@ export default function Buy({
                 setFormData(prev => ({
                     ...prev,
                     dollarAmount: '',
-                    commission: '',
+                    commission: '0', // إعادة العمولة إلى صفر
                     notes: '',
                     currentTime: new Date().toLocaleString('ar-EG') // تحديث التوقيت
                 }));
@@ -281,7 +281,7 @@ export default function Buy({
                     setFormData(prev => ({
                         ...prev,
                         dollarAmount: '',
-                        commission: '',
+                        commission: '0', // إعادة العمولة إلى صفر
                         notes: '',
                         currentTime: new Date().toLocaleString('ar-EG')
                     }));
@@ -366,14 +366,6 @@ export default function Buy({
                                     <h3 className="text-lg font-semibold text-cyan-800 mb-2">الرصيد المتبقي (دولار)</h3>
                                     <p className="text-3xl font-bold text-cyan-700">
                                         ${Math.floor(dollarBalance).toLocaleString()}
-                                    </p>
-                                </div>
-
-                                {/* الرصيد المتبقي بالدينار العراقي */}
-                                <div className="bg-orange-50 rounded-xl p-6">
-                                    <h3 className="text-lg font-semibold text-orange-800 mb-2">الرصيد المتبقي (دينار)</h3>
-                                    <p className="text-3xl font-bold text-orange-700">
-                                        {Math.floor(dollarBalance * exchangeRate).toLocaleString()} د.ع
                                     </p>
                                 </div>
 
@@ -525,7 +517,7 @@ export default function Buy({
                                     <input
                                         type="number"
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-right"
-                                        placeholder="العمولة"
+                                        placeholder="0 (اختياري)"
                                         value={formData.commission}
                                         onChange={(e) => handleInputChange('commission', e.target.value)}
                                     />

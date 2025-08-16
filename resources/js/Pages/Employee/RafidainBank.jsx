@@ -28,7 +28,7 @@ export default function RafidainBank({ user, currentBalance = 0, transactions = 
     // بيانات النموذج
     const [formData, setFormData] = useState({
         amount: '',
-        commission: '',
+        commission: '0', // العمولة تبدأ بصفر
         notes: ''
     });
 
@@ -70,16 +70,16 @@ export default function RafidainBank({ user, currentBalance = 0, transactions = 
         generateRefNumber();
     }, []);
 
-    // حساب العمولة التلقائي
-    useEffect(() => {
-        if (formData.amount) {
-            const amount = parseFloat(formData.amount);
-            if (!isNaN(amount)) {
-                const commission = Math.round(amount * 0.01); // 1% عمولة
-                setFormData(prev => ({ ...prev, commission: commission.toString() }));
-            }
-        }
-    }, [formData.amount]);
+    // حساب العمولة التلقائي - تم إلغاؤه ليبدأ بصفر
+    // useEffect(() => {
+    //     if (formData.amount) {
+    //         const amount = parseFloat(formData.amount);
+    //         if (!isNaN(amount)) {
+    //             const commission = Math.round(amount * 0.01); // 1% عمولة
+    //             setFormData(prev => ({ ...prev, commission: commission.toString() }));
+    //         }
+    //     }
+    // }, [formData.amount]);
 
     // تحديث قيم النموذج
     const handleInputChange = (field, value) => {
@@ -212,7 +212,7 @@ export default function RafidainBank({ user, currentBalance = 0, transactions = 
     const resetForm = () => {
         setFormData({
             amount: '',
-            commission: '',
+            commission: '0', // إعادة العمولة إلى صفر
             notes: ''
         });
 

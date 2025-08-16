@@ -28,7 +28,7 @@ export default function Sell({
         currentTime: new Date().toLocaleString('ar-EG'),
         dollarAmount: '',
         exchangeRate: exchangeRate, // سعر الصرف من قاعدة البيانات
-        commission: '',
+        commission: '0', // العمولة تبدأ بصفر
         notes: '',
         employeeName: user?.name || 'الموظف الحالي'
     });
@@ -86,18 +86,18 @@ export default function Sell({
         setFormData(prev => ({ ...prev, documentNumber: referenceNumber }));
     }, [referenceNumber]);
 
-    // حساب العمولة التلقائي
-    useEffect(() => {
-        if (formData.dollarAmount && formData.exchangeRate) {
-            const dollarAmount = parseFloat(formData.dollarAmount);
-            const exchangeRate = parseFloat(formData.exchangeRate);
-            if (!isNaN(dollarAmount) && !isNaN(exchangeRate)) {
-                const iqd_amount = dollarAmount * exchangeRate;
-                const commission = Math.round(iqd_amount * 0.01); // 1% عمولة
-                setFormData(prev => ({ ...prev, commission: commission.toString() }));
-            }
-        }
-    }, [formData.dollarAmount, formData.exchangeRate]);
+    // حساب العمولة التلقائي - تم إلغاؤه ليبدأ بصفر
+    // useEffect(() => {
+    //     if (formData.dollarAmount && formData.exchangeRate) {
+    //         const dollarAmount = parseFloat(formData.dollarAmount);
+    //         const exchangeRate = parseFloat(formData.exchangeRate);
+    //         if (!isNaN(dollarAmount) && !isNaN(exchangeRate)) {
+    //             const iqd_amount = dollarAmount * exchangeRate;
+    //             const commission = Math.round(iqd_amount * 0.01); // 1% عمولة
+    //             setFormData(prev => ({ ...prev, commission: commission.toString() }));
+    //         }
+    //     }
+    // }, [formData.dollarAmount, formData.exchangeRate]);
 
     const handleInputChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -168,7 +168,7 @@ export default function Sell({
                 setFormData(prev => ({
                     ...prev,
                     dollarAmount: '',
-                    commission: '',
+                    commission: '0', // إعادة العمولة إلى صفر
                     notes: '',
                     currentTime: new Date().toLocaleString('ar-EG') // تحديث التوقيت
                 }));
@@ -272,7 +272,7 @@ export default function Sell({
                     setFormData(prev => ({
                         ...prev,
                         dollarAmount: '',
-                        commission: '',
+                        commission: '0', // إعادة العمولة إلى صفر
                         notes: '',
                         currentTime: new Date().toLocaleString('ar-EG')
                     }));
