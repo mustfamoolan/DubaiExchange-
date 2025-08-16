@@ -89,6 +89,15 @@ export default function EmployeeDashboard() {
             route: '/employee/exchange'
         },
         {
+            id: 9,
+            title: 'العملاء',
+            subtitle: 'إدارة العملاء',
+            icon: '👥',
+            image: '/images/services/customers.png',
+            color: 'bg-indigo-600',
+            route: '/employee/customers'
+        },
+        {
             id: 12,
             title: 'الرصيد الافتتاحي',
             subtitle: 'عرض الرصيد الافتتاحي',

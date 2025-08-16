@@ -15,6 +15,7 @@ use App\Http\Controllers\BuyController;
 use App\Http\Controllers\ReceiveController;
 use App\Http\Controllers\ExchangeController;
 use App\Http\Controllers\ThermalReceiptController;
+use App\Http\Controllers\Employee\EmployeeCustomerController;
 use Inertia\Inertia;
 
 // توجيه الصفحة الرئيسية إلى صفحة تسجيل الدخول
@@ -225,6 +226,16 @@ Route::prefix('admin')->group(function () {
 Route::prefix('employee')->group(function () {
     Route::get('/dashboard', [EmployeeController::class, 'dashboard'])->name('employee.dashboard');
     Route::get('/opening-balance', [EmployeeController::class, 'openingBalance'])->name('employee.opening-balance');
+
+    // مسارات العملاء للموظف
+    Route::get('/customers', [EmployeeCustomerController::class, 'index'])->name('employee.customers');
+    Route::post('/customers', [EmployeeCustomerController::class, 'store'])->name('employee.customers.store');
+    Route::get('/customers/search', [EmployeeCustomerController::class, 'search'])->name('employee.customers.search');
+    Route::get('/customers/{id}', [EmployeeCustomerController::class, 'show'])->name('employee.customers.show');
+    Route::put('/customers/{id}', [EmployeeCustomerController::class, 'update'])->name('employee.customers.update');
+    Route::patch('/customers/{id}/toggle-status', [EmployeeCustomerController::class, 'toggleStatus'])->name('employee.customers.toggle');
+    Route::delete('/customers/{id}', [EmployeeCustomerController::class, 'destroy'])->name('employee.customers.delete');
+
     Route::get('/sell', [SellController::class, 'index'])->name('employee.sell');
     Route::post('/sell', [SellController::class, 'sell'])->name('employee.sell.transaction');
     Route::get('/sell/transactions', [SellController::class, 'getTransactions'])->name('employee.sell.transactions');
@@ -307,4 +318,8 @@ Route::prefix('api')->group(function () {
     // API للعملاء
     Route::get('/customers/search', [CustomerController::class, 'apiSearch'])->name('api.customers.search');
     Route::post('/customers', [CustomerController::class, 'apiStore'])->name('api.customers.store');
+
+    // API للعملاء - الموظف
+    Route::get('/employee/customers/search', [EmployeeCustomerController::class, 'apiSearch'])->name('api.employee.customers.search');
+    Route::post('/employee/customers', [EmployeeCustomerController::class, 'apiStore'])->name('api.employee.customers.store');
 });
