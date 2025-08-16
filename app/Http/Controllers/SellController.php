@@ -52,7 +52,19 @@ class SellController extends Controller
         // Get user's opening balance for Dollar sales
         $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
         $dollarBalance = $openingBalance ? $openingBalance->usd_cash : 0;
+        $currentNaqaBalance = $openingBalance ? $openingBalance->naqa : 0;
         $exchangeRate = $openingBalance ? $openingBalance->exchange_rate : 1500;
+
+        // حساب إجمالي المستلم (من سندات القبض)
+        $totalReceived = \App\Models\ReceiveTransaction::where('user_id', $sessionUser['id'])
+            ->sum('amount_in_iqd');
+
+        // حساب إجمالي المصروف (من سندات الصرف)
+        $totalExchanged = \App\Models\ExchangeTransaction::where('user_id', $sessionUser['id'])
+            ->sum('amount');
+
+        // حساب الرصيد النقدي الحالي الموحد
+        $currentBalance = $currentNaqaBalance + $totalReceived - $totalExchanged;
 
         // Calculate total dollars sold (نقص من الدولار)
         $totalDollarsSold = SellTransaction::where('user_id', $sessionUser['id'])
@@ -61,7 +73,7 @@ class SellController extends Controller
         // Calculate current dollar balance (الرصيد الافتتاحي - الدولار المباع)
         $currentDollarBalance = $dollarBalance - $totalDollarsSold;
 
-        // Calculate IQD balance received from sales (المبالغ المحصلة بالدينار العراقي)
+        // Calculate IQD balance received from sales (المبالغ المحصلة بالدينار العراقي من البيع)
         $totalIQDReceived = SellTransaction::where('user_id', $sessionUser['id'])
             ->sum('iqd_amount');
 
@@ -77,9 +89,9 @@ class SellController extends Controller
         return Inertia::render('Employee/Sell', [
             'user' => $sessionUser,
             'currentDollarBalance' => $currentDollarBalance, // الرصيد الحالي بالدولار
-            'currentIQDBalance' => $totalIQDReceived, // الرصيد المحصل بالدينار العراقي
+            'currentBalance' => $currentBalance, // الرصيد النقدي الحالي الموحد
             'openingDollarBalance' => $dollarBalance, // الرصيد الافتتاحي بالدولار
-            'openingIQDBalance' => $dollarBalance * $exchangeRate, // الرصيد الافتتاحي بالدينار العراقي
+            'openingBalance' => $currentNaqaBalance, // الرصيد الافتتاحي النقدي
             'exchangeRate' => $exchangeRate,
             'transactions' => $transactions,
             'quickReport' => [
@@ -138,8 +150,12 @@ class SellController extends Controller
 
             // Calculate new balances after transaction
             $newDollarBalance = $currentDollarBalance - $dollarAmount; // نقص الدولار
-            $totalIQDReceived = SellTransaction::where('user_id', $sessionUser['id'])
-                ->sum('iqd_amount') + $iqd_amount; // زيادة الدينار العراقي المحصل
+
+            // تحديث الرصيد النقدي - نضيف المبلغ الكلي للرصيد النقدي
+            if ($openingBalance) {
+                $openingBalance->naqa += $totalAmount; // إضافة المبلغ الكلي (المبلغ + العمولة) للرصيد النقدي
+                $openingBalance->save();
+            }
 
             // Create transaction record
             $transaction = SellTransaction::create([
@@ -166,12 +182,19 @@ class SellController extends Controller
             $updatedTotalOperations = SellTransaction::where('user_id', $sessionUser['id'])->count();
             $updatedDollarsSold = SellTransaction::where('user_id', $sessionUser['id'])->sum('dollar_amount');
 
+            // حساب الرصيد النقدي المحدث
+            $updatedOpeningBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
+            $updatedNaqaBalance = $updatedOpeningBalance ? $updatedOpeningBalance->naqa : 0;
+            $updatedTotalReceived = \App\Models\ReceiveTransaction::where('user_id', $sessionUser['id'])->sum('amount_in_iqd');
+            $updatedTotalExchanged = \App\Models\ExchangeTransaction::where('user_id', $sessionUser['id'])->sum('amount');
+            $updatedCashBalance = $updatedNaqaBalance + $updatedTotalReceived - $updatedTotalExchanged;
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم إجراء عملية البيع بنجاح',
                 'transaction' => $transaction,
                 'new_dollar_balance' => $newDollarBalance,
-                'new_iqd_balance' => $updatedTotalIQDReceived,
+                'new_cash_balance' => $updatedCashBalance,
                 'updated_report' => [
                     'charges' => 0,
                     'payments' => $updatedTotalIQDReceived,

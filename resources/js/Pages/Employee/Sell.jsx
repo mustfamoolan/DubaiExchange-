@@ -7,15 +7,15 @@ import ThermalReceipt from '../../Components/ThermalReceipt';
 export default function Sell({
     user,
     currentDollarBalance = 0,
-    currentIQDBalance = 0,
+    currentBalance = 0,
     openingDollarBalance = 0,
-    openingIQDBalance = 0,
+    openingBalance = 0,
     exchangeRate = 1500,
     transactions = [],
     quickReport = { charges: 0, payments: 0, operations: 0, dollars_sold: 0 }
 }) {
     const [dollarBalance, setDollarBalance] = useState(currentDollarBalance);
-    const [iqd_balance, setIqd_balance] = useState(currentIQDBalance);
+    const [cashBalance, setCashBalance] = useState(currentBalance);
     const [todayReport, setTodayReport] = useState({
         charges: quickReport.charges,
         payments: quickReport.payments,
@@ -152,7 +152,7 @@ export default function Sell({
 
                 // تحديث الأرصدة
                 setDollarBalance(result.new_dollar_balance);
-                setIqd_balance(result.new_iqd_balance);
+                setCashBalance(result.new_cash_balance);
 
                 // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
                 if (result.updated_report) {
@@ -243,7 +243,7 @@ export default function Sell({
 
                 // تحديث الأرصدة
                 setDollarBalance(result.new_dollar_balance);
-                setIqd_balance(result.new_iqd_balance);
+                setCashBalance(result.new_cash_balance);
 
                 // تحديث تقرير اليوم
                 if (result.updated_report) {
@@ -360,11 +360,11 @@ export default function Sell({
                                     </p>
                                 </div>
 
-                                {/* الرصيد المتبقي بالدينار العراقي */}
-                                <div className="bg-orange-50 rounded-xl p-6">
-                                    <h3 className="text-lg font-semibold text-orange-800 mb-2">الرصيد المتبقي (دينار)</h3>
-                                    <p className="text-3xl font-bold text-orange-700">
-                                        {Math.floor(dollarBalance * exchangeRate).toLocaleString()} د.ع
+                                {/* الرصيد النقدي الحالي */}
+                                <div className="bg-green-50 rounded-xl p-6">
+                                    <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد النقدي الحالي</h3>
+                                    <p className="text-3xl font-bold text-green-700">
+                                        {Math.floor(cashBalance).toLocaleString()} د.ع
                                     </p>
                                 </div>
                             </div>
@@ -381,9 +381,9 @@ export default function Sell({
                                         </span>
                                     </div>
                                     <div className="flex justify-between items-center">
-                                        <span className="text-sm font-medium text-gray-700">بالدينار:</span>
+                                        <span className="text-sm font-medium text-gray-700">بالدينار النقدي:</span>
                                         <span className="font-bold text-gray-800">
-                                            {openingIQDBalance > 0 ? Math.floor(openingIQDBalance).toLocaleString() : '0'} د.ع
+                                            {openingBalance > 0 ? Math.floor(openingBalance).toLocaleString() : '0'} د.ع
                                         </span>
                                     </div>
                                 </div>
@@ -500,10 +500,14 @@ export default function Sell({
                                     </label>
                                     <input
                                         type="number"
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-right bg-gray-50"
-                                        value={Math.floor(formData.exchangeRate)}
-                                        readOnly
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-right"
+                                        value={formData.exchangeRate}
+                                        onChange={(e) => handleInputChange('exchangeRate', e.target.value)}
+                                        placeholder="سعر الصرف"
                                     />
+                                    <p className="text-xs text-gray-500 mt-1 text-right">
+                                        السعر الافتراضي: {exchangeRate.toLocaleString()} د.ع
+                                    </p>
                                 </div>
 
                                 <div>
