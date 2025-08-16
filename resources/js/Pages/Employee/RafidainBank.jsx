@@ -4,8 +4,17 @@ import { router } from '@inertiajs/react';
 import ThermalReceipt from '../../Components/ThermalReceipt';
 import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
 
-export default function RafidainBank({ user, currentBalance = 0, transactions = [], openingBalance = 0, quickReport = { charges: 0, payments: 0, operations: 0 } }) {
+export default function RafidainBank({
+    user,
+    currentBalance = 0,
+    currentCashBalance = 0, // الرصيد النقدي الحالي
+    transactions = [],
+    openingBalance = 0,
+    openingCashBalance = 0, // الرصيد النقدي الافتتاحي
+    quickReport = { charges: 0, payments: 0, operations: 0 }
+}) {
     const [balance, setBalance] = useState(currentBalance);
+    const [cashBalance, setCashBalance] = useState(currentCashBalance); // الرصيد النقدي
     const [activeTab, setActiveTab] = useState('charge'); // 'charge' or 'payment'
     const [showDetailedReport, setShowDetailedReport] = useState(false);
     const [todayReport, setTodayReport] = useState({
@@ -153,6 +162,11 @@ export default function RafidainBank({ user, currentBalance = 0, transactions = 
                 // تحديث الرصيد
                 setBalance(result.new_balance);
 
+                // تحديث الرصيد النقدي إذا كان متوفراً
+                if (result.new_cash_balance !== undefined) {
+                    setCashBalance(result.new_cash_balance);
+                }
+
                 // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
                 if (result.updated_report) {
                     setTodayReport({
@@ -212,7 +226,7 @@ export default function RafidainBank({ user, currentBalance = 0, transactions = 
     const resetForm = () => {
         setFormData({
             amount: '',
-            commission: '0', // إعادة العمولة إلى صفر
+            commission: '',
             notes: ''
         });
 
@@ -260,19 +274,41 @@ export default function RafidainBank({ user, currentBalance = 0, transactions = 
                             </div>
 
                             {/* عرض الرصيد */}
-                            <div className="bg-green-50 rounded-xl p-6 mb-6">
-                                <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد المتبقي</h3>
-                                <p className="text-3xl font-bold text-green-700">
-                                    {Math.floor(balance).toLocaleString()} د.ع
-                                </p>
+                            <div className="space-y-4 mb-6">
+                                {/* الرصيد المتبقي لمصرف الرافدين */}
+                                <div className="bg-green-50 rounded-xl p-6">
+                                    <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد المتبقي لمصرف الرافدين</h3>
+                                    <p className="text-3xl font-bold text-green-700">
+                                        {Math.floor(balance).toLocaleString()} د.ع
+                                    </p>
+                                </div>
+
+                                {/* الرصيد النقدي الحالي */}
+                                <div className="bg-blue-50 rounded-xl p-6">
+                                    <h3 className="text-lg font-semibold text-blue-800 mb-2">الرصيد النقدي الحالي</h3>
+                                    <p className="text-3xl font-bold text-blue-700">
+                                        {Math.floor(cashBalance).toLocaleString()} د.ع
+                                    </p>
+                                </div>
                             </div>
 
                             {/* عرض الرصيد الافتتاحي */}
-                            <div className="bg-gray-50 rounded-xl p-4 mb-6">
-                                <h4 className="text-sm font-semibold text-gray-700 mb-1">الرصيد الافتتاحي</h4>
-                                <p className="text-lg font-bold text-gray-800">
-                                    {openingBalance > 0 ? Math.floor(openingBalance).toLocaleString() : '0'} د.ع
-                                </p>
+                            <div className="space-y-3 mb-6">
+                                <h4 className="text-lg font-semibold text-gray-800">الرصيد الافتتاحي</h4>
+                                <div className="bg-gray-50 rounded-xl p-4">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-sm font-medium text-gray-700">مصرف الرافدين:</span>
+                                        <span className="font-bold text-gray-800">
+                                            {openingBalance > 0 ? Math.floor(openingBalance).toLocaleString() : '0'} د.ع
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm font-medium text-gray-700">نقدي:</span>
+                                        <span className="font-bold text-gray-800">
+                                            {openingCashBalance > 0 ? Math.floor(openingCashBalance).toLocaleString() : '0'} د.ع
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
 
                             {/* تقرير اليوم */}

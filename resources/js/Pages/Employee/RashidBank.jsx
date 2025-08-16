@@ -4,8 +4,17 @@ import { router } from '@inertiajs/react';
 import ThermalReceipt from '../../Components/ThermalReceipt';
 import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
 
-export default function RashidBank({ user, currentBalance = 0, transactions = [], openingBalance = 0, quickReport = { charges: 0, payments: 0, operations: 0 } }) {
+export default function RashidBank({
+    user,
+    currentBalance = 0,
+    currentCashBalance = 0, // الرصيد النقدي الحالي
+    transactions = [],
+    openingBalance = 0,
+    openingCashBalance = 0, // الرصيد النقدي الافتتاحي
+    quickReport = { charges: 0, payments: 0, operations: 0 }
+}) {
     const [balance, setBalance] = useState(currentBalance);
+    const [cashBalance, setCashBalance] = useState(currentCashBalance); // الرصيد النقدي
     const [activeTab, setActiveTab] = useState('charge'); // 'charge' or 'payment'
     const [showDetailedReport, setShowDetailedReport] = useState(false);
     const [todayReport, setTodayReport] = useState({
@@ -70,16 +79,16 @@ export default function RashidBank({ user, currentBalance = 0, transactions = []
         generateRefNumber();
     }, []);
 
-    // حساب العمولة التلقائي - تم إلغاؤه ليبدأ بصفر
-    // useEffect(() => {
-    //     if (formData.amount) {
-    //         const amount = parseFloat(formData.amount);
-    //         if (!isNaN(amount)) {
-    //             const commission = Math.round(amount * 0.01); // 1% عمولة
-    //             setFormData(prev => ({ ...prev, commission: commission.toString() }));
-    //         }
-    //     }
-    // }, [formData.amount]);
+    // حساب العمولة التلقائي
+    useEffect(() => {
+        if (formData.amount) {
+            const amount = parseFloat(formData.amount);
+            if (!isNaN(amount)) {
+                const commission = Math.round(amount * 0.01); // 1% عمولة
+                setFormData(prev => ({ ...prev, commission: commission.toString() }));
+            }
+        }
+    }, [formData.amount]);
 
     // تحديث قيم النموذج
     const handleInputChange = (field, value) => {
@@ -153,6 +162,11 @@ export default function RashidBank({ user, currentBalance = 0, transactions = []
                 // تحديث الرصيد
                 setBalance(result.new_balance);
 
+                // تحديث الرصيد النقدي إذا كان متوفراً
+                if (result.new_cash_balance !== undefined) {
+                    setCashBalance(result.new_cash_balance);
+                }
+
                 // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
                 if (result.updated_report) {
                     setTodayReport({
@@ -212,7 +226,7 @@ export default function RashidBank({ user, currentBalance = 0, transactions = []
     const resetForm = () => {
         setFormData({
             amount: '',
-            commission: '0', // إعادة العمولة إلى صفر
+            commission: '',
             notes: ''
         });
 
@@ -261,9 +275,17 @@ export default function RashidBank({ user, currentBalance = 0, transactions = []
 
                             {/* عرض الرصيد */}
                             <div className="bg-blue-50 rounded-xl p-6 mb-6">
-                                <h3 className="text-lg font-semibold text-blue-800 mb-2">الرصيد المتبقي</h3>
+                                <h3 className="text-lg font-semibold text-blue-800 mb-2">رصيد مصرف الرشيد</h3>
                                 <p className="text-3xl font-bold text-blue-700">
                                     {Math.floor(balance).toLocaleString()} د.ع
+                                </p>
+                            </div>
+
+                            {/* عرض الرصيد النقدي الحالي */}
+                            <div className="bg-green-50 rounded-xl p-6 mb-6">
+                                <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد النقدي الحالي</h3>
+                                <p className="text-3xl font-bold text-green-700">
+                                    {Math.floor(cashBalance).toLocaleString()} د.ع
                                 </p>
                             </div>
 
@@ -553,7 +575,7 @@ export default function RashidBank({ user, currentBalance = 0, transactions = []
                                             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
                                                 <span className="text-2xl">💰</span>
                                             </div>
-                                            <h4 className="text-sm font-semibold text-blue-700 mb-2">الرصيد المتبقي</h4>
+                                            <h4 className="text-sm font-semibold text-blue-700 mb-2">رصيد مصرف الرشيد</h4>
                                             <p className="text-2xl font-bold text-blue-800">
                                                 {detailedReportData ? Math.floor(detailedReportData.current_balance).toLocaleString() : Math.floor(balance).toLocaleString()}
                                             </p>

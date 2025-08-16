@@ -7,6 +7,13 @@ use Inertia\Inertia;
 use App\Models\RafidainTransaction;
 use App\Models\User;
 use App\Models\OpeningBalance;
+use App\Models\ReceiveTransaction;
+use App\Models\ExchangeTransaction;
+use App\Models\SellTransaction;
+use App\Models\BuyTransaction;
+use App\Models\ZainCashTransaction;
+use App\Models\RashidTransaction;
+use App\Models\SuperKeyTransaction;
 use Illuminate\Support\Facades\DB;
 
 class RafidainBankController extends Controller
@@ -52,6 +59,19 @@ class RafidainBankController extends Controller
         // Get user's opening balance for Rafidain Bank
         $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
         $rafidainBalance = $openingBalance ? $openingBalance->rafidain : 0;
+        $currentNaqaBalance = $openingBalance ? $openingBalance->naqa : 0;
+
+        // حساب الرصيد النقدي الحالي الموحد (نقا + رافدين + راشد + زين كاش + سوبر كي)
+        // حساب إجمالي المستلم (من سندات القبض)
+        $totalReceived = \App\Models\ReceiveTransaction::where('user_id', $sessionUser['id'])
+            ->sum('amount_in_iqd');
+
+        // حساب إجمالي المصروف (من سندات الصرف)
+        $totalExchanged = \App\Models\ExchangeTransaction::where('user_id', $sessionUser['id'])
+            ->sum('amount');
+
+        // حساب الرصيد النقدي الحالي الموحد
+        $currentCashBalance = $currentNaqaBalance + $totalReceived - $totalExchanged;
 
         // Calculate current balance based on transactions
         $totalCharges = RafidainTransaction::where('user_id', $sessionUser['id'])
@@ -62,7 +82,7 @@ class RafidainBankController extends Controller
             ->where('transaction_type', 'payment')
             ->sum('amount'); // فقط المبلغ، ليس العمولة
 
-        $currentBalance = $rafidainBalance - $totalCharges + $totalPayments;
+        $currentBalance = $rafidainBalance + $totalCharges - $totalPayments;
 
         // Get recent transactions
         $transactions = RafidainTransaction::where('user_id', $sessionUser['id'])
@@ -78,6 +98,7 @@ class RafidainBankController extends Controller
         return Inertia::render('Employee/RafidainBank', [
             'user' => $sessionUser,
             'currentBalance' => $currentBalance,
+            'currentCashBalance' => $currentCashBalance, // الرصيد النقدي الحالي الموحد
             'transactions' => $transactions,
             'openingBalance' => $rafidainBalance,
             'quickReport' => [
@@ -118,11 +139,11 @@ class RafidainBankController extends Controller
                 ->where('transaction_type', 'payment')
                 ->sum('amount');
 
-            $previousBalance = $rafidainBalance - $totalCharges + $totalPayments;
+            $previousBalance = $rafidainBalance + $totalCharges - $totalPayments;
             $amount = $request->amount;
             $commission = $request->commission ?? RafidainTransaction::calculateCommission($amount, 'charge');
             $totalWithCommission = $amount + $commission;
-            $newBalance = $previousBalance - $amount; // نقص المبلغ فقط من الرصيد للشحن
+            $newBalance = $previousBalance + $amount; // زيادة المبلغ للرصيد المصرفي عند الشحن
 
             // Create transaction record
             $transaction = RafidainTransaction::create([
@@ -132,7 +153,7 @@ class RafidainBankController extends Controller
                 'amount' => $amount,
                 'commission' => $commission,
                 'total_with_commission' => $totalWithCommission,
-                'balance_change' => -$amount, // نقص المبلغ فقط من الرصيد
+                'balance_change' => +$amount, // زيادة المبلغ إلى الرصيد المصرفي
                 'previous_balance' => $previousBalance,
                 'new_balance' => $newBalance,
                 'customer_name' => $sessionUser['name'], // اسم الموظف
@@ -154,11 +175,46 @@ class RafidainBankController extends Controller
 
             $updatedTotalOperations = RafidainTransaction::where('user_id', $sessionUser['id'])->count();
 
+            // حساب الرصيد النقدي الموحد المحدث
+            $totalCashBalance = OpeningBalance::where('user_id', $sessionUser['id'])->sum('naqa');
+
+            // جميع معاملات الرصيد النقدي
+            $updatedReceiveTotal = ReceiveTransaction::where('user_id', $sessionUser['id'])->sum('amount');
+            $updatedExchangeTotal = ExchangeTransaction::where('user_id', $sessionUser['id'])->sum('amount');
+            $updatedSellTotal = SellTransaction::where('user_id', $sessionUser['id'])->sum('total_amount');
+            $updatedBuyTotal = BuyTransaction::where('user_id', $sessionUser['id'])->sum('total_amount');
+
+            // حساب إجمالي العمولات من جميع المصارف (تزيد الرصيد النقدي)
+            $updatedZainCommissions = ZainCashTransaction::where('user_id', $sessionUser['id'])->sum('commission');
+            $updatedRafidainCommissions = RafidainTransaction::where('user_id', $sessionUser['id'])->sum('commission');
+            $updatedRashidCommissions = RashidTransaction::where('user_id', $sessionUser['id'])->sum('commission');
+            $updatedSuperKeyCommissions = SuperKeyTransaction::where('user_id', $sessionUser['id'])->sum('commission');
+
+            $totalCommissions = $updatedZainCommissions + $updatedRafidainCommissions + $updatedRashidCommissions + $updatedSuperKeyCommissions;
+
+            // حساب المبالغ الأساسية للشحن والدفع من جميع المصارف
+            $updatedZainCharges = ZainCashTransaction::where('user_id', $sessionUser['id'])->where('transaction_type', 'charge')->sum('amount');
+            $updatedZainPayments = ZainCashTransaction::where('user_id', $sessionUser['id'])->where('transaction_type', 'payment')->sum('amount');
+            $updatedRafidainCharges = RafidainTransaction::where('user_id', $sessionUser['id'])->where('transaction_type', 'charge')->sum('amount');
+            $updatedRafidainPayments = RafidainTransaction::where('user_id', $sessionUser['id'])->where('transaction_type', 'payment')->sum('amount');
+            $updatedRashidCharges = RashidTransaction::where('user_id', $sessionUser['id'])->where('transaction_type', 'charge')->sum('amount');
+            $updatedRashidPayments = RashidTransaction::where('user_id', $sessionUser['id'])->where('transaction_type', 'payment')->sum('amount');
+            $updatedSuperKeyCharges = SuperKeyTransaction::where('user_id', $sessionUser['id'])->where('transaction_type', 'charge')->sum('amount');
+            $updatedSuperKeyPayments = SuperKeyTransaction::where('user_id', $sessionUser['id'])->where('transaction_type', 'payment')->sum('amount');
+
+            $totalCharges = $updatedZainCharges + $updatedRafidainCharges + $updatedRashidCharges + $updatedSuperKeyCharges;
+            $totalPayments = $updatedZainPayments + $updatedRafidainPayments + $updatedRashidPayments + $updatedSuperKeyPayments;
+
+            // حساب الرصيد النقدي المحدث
+            $updatedCurrentCashBalance = $totalCashBalance + $updatedReceiveTotal + $updatedSellTotal + $totalPayments + $totalCommissions
+                                       - $updatedExchangeTotal - $updatedBuyTotal - $totalCharges;
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم إجراء عملية الشحن بنجاح',
                 'transaction' => $transaction,
                 'new_balance' => $newBalance,
+                'new_cash_balance' => $updatedCurrentCashBalance, // الرصيد النقدي المحدث
                 'updated_report' => [
                     'charges' => $updatedTotalCharges,
                     'payments' => $updatedTotalPayments,
@@ -205,7 +261,7 @@ class RafidainBankController extends Controller
                 ->where('transaction_type', 'payment')
                 ->sum('amount');
 
-            $previousBalance = $rafidainBalance - $totalCharges + $totalPayments;
+            $previousBalance = $rafidainBalance + $totalCharges - $totalPayments;
             $amount = $request->amount;
             $commission = $request->commission ?? RafidainTransaction::calculateCommission($amount, 'payment');
             $totalWithCommission = $amount + $commission;
@@ -218,7 +274,7 @@ class RafidainBankController extends Controller
                 ], 400);
             }
 
-            $newBalance = $previousBalance + $amount; // زيادة المبلغ فقط إلى الرصيد للدفع
+            $newBalance = $previousBalance - $amount; // نقص المبلغ من الرصيد المصرفي عند الدفع
 
             // Create transaction record
             $transaction = RafidainTransaction::create([
@@ -228,7 +284,7 @@ class RafidainBankController extends Controller
                 'amount' => $amount,
                 'commission' => $commission,
                 'total_with_commission' => $totalWithCommission,
-                'balance_change' => $amount, // زيادة المبلغ فقط إلى الرصيد
+                'balance_change' => -$amount, // نقص المبلغ من الرصيد المصرفي
                 'previous_balance' => $previousBalance,
                 'new_balance' => $newBalance,
                 'customer_name' => $sessionUser['name'], // اسم الموظف
@@ -250,11 +306,46 @@ class RafidainBankController extends Controller
 
             $updatedTotalOperations = RafidainTransaction::where('user_id', $sessionUser['id'])->count();
 
+            // حساب الرصيد النقدي الموحد المحدث
+            $totalCashBalance = OpeningBalance::where('user_id', $sessionUser['id'])->sum('naqa');
+
+            // جميع معاملات الرصيد النقدي
+            $updatedReceiveTotal = ReceiveTransaction::where('user_id', $sessionUser['id'])->sum('amount');
+            $updatedExchangeTotal = ExchangeTransaction::where('user_id', $sessionUser['id'])->sum('amount');
+            $updatedSellTotal = SellTransaction::where('user_id', $sessionUser['id'])->sum('total_amount');
+            $updatedBuyTotal = BuyTransaction::where('user_id', $sessionUser['id'])->sum('total_amount');
+
+            // حساب إجمالي العمولات من جميع المصارف (تزيد الرصيد النقدي)
+            $updatedZainCommissions = ZainCashTransaction::where('user_id', $sessionUser['id'])->sum('commission');
+            $updatedRafidainCommissions = RafidainTransaction::where('user_id', $sessionUser['id'])->sum('commission');
+            $updatedRashidCommissions = RashidTransaction::where('user_id', $sessionUser['id'])->sum('commission');
+            $updatedSuperKeyCommissions = SuperKeyTransaction::where('user_id', $sessionUser['id'])->sum('commission');
+
+            $totalCommissions = $updatedZainCommissions + $updatedRafidainCommissions + $updatedRashidCommissions + $updatedSuperKeyCommissions;
+
+            // حساب المبالغ الأساسية للشحن والدفع من جميع المصارف
+            $updatedZainCharges = ZainCashTransaction::where('user_id', $sessionUser['id'])->where('transaction_type', 'charge')->sum('amount');
+            $updatedZainPayments = ZainCashTransaction::where('user_id', $sessionUser['id'])->where('transaction_type', 'payment')->sum('amount');
+            $updatedRafidainCharges = RafidainTransaction::where('user_id', $sessionUser['id'])->where('transaction_type', 'charge')->sum('amount');
+            $updatedRafidainPayments = RafidainTransaction::where('user_id', $sessionUser['id'])->where('transaction_type', 'payment')->sum('amount');
+            $updatedRashidCharges = RashidTransaction::where('user_id', $sessionUser['id'])->where('transaction_type', 'charge')->sum('amount');
+            $updatedRashidPayments = RashidTransaction::where('user_id', $sessionUser['id'])->where('transaction_type', 'payment')->sum('amount');
+            $updatedSuperKeyCharges = SuperKeyTransaction::where('user_id', $sessionUser['id'])->where('transaction_type', 'charge')->sum('amount');
+            $updatedSuperKeyPayments = SuperKeyTransaction::where('user_id', $sessionUser['id'])->where('transaction_type', 'payment')->sum('amount');
+
+            $totalCharges = $updatedZainCharges + $updatedRafidainCharges + $updatedRashidCharges + $updatedSuperKeyCharges;
+            $totalPayments = $updatedZainPayments + $updatedRafidainPayments + $updatedRashidPayments + $updatedSuperKeyPayments;
+
+            // حساب الرصيد النقدي المحدث
+            $updatedCurrentCashBalance = $totalCashBalance + $updatedReceiveTotal + $updatedSellTotal + $totalPayments + $totalCommissions
+                                       - $updatedExchangeTotal - $updatedBuyTotal - $totalCharges;
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم إجراء عملية الدفع بنجاح',
                 'transaction' => $transaction,
                 'new_balance' => $newBalance,
+                'new_cash_balance' => $updatedCurrentCashBalance, // الرصيد النقدي المحدث
                 'updated_report' => [
                     'charges' => $updatedTotalCharges,
                     'payments' => $updatedTotalPayments,
@@ -319,7 +410,7 @@ class RafidainBankController extends Controller
             $rafidainBalance = $openingBalance ? $openingBalance->rafidain : 0;
 
             // Calculate current balance
-            $currentBalance = $rafidainBalance - $totalCharges + $totalPayments;
+            $currentBalance = $rafidainBalance + $totalCharges - $totalPayments;
 
             return response()->json([
                 'success' => true,

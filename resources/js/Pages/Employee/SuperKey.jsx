@@ -4,8 +4,17 @@ import { router } from '@inertiajs/react';
 import ThermalReceipt from '../../Components/ThermalReceipt';
 import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
 
-export default function SuperKey({ user, currentBalance = 0, transactions = [], openingBalance = 0, quickReport = { charges: 0, payments: 0, operations: 0 } }) {
+export default function SuperKey({
+    user,
+    currentBalance = 0,
+    currentCashBalance = 0, // الرصيد النقدي الحالي
+    transactions = [],
+    openingBalance = 0,
+    openingCashBalance = 0, // الرصيد النقدي الافتتاحي
+    quickReport = { charges: 0, payments: 0, operations: 0 }
+}) {
     const [balance, setBalance] = useState(currentBalance);
+    const [cashBalance, setCashBalance] = useState(currentCashBalance); // الرصيد النقدي
     const [activeTab, setActiveTab] = useState('charge'); // 'charge' or 'payment'
     const [showDetailedReport, setShowDetailedReport] = useState(false);
     const [todayReport, setTodayReport] = useState({
@@ -25,7 +34,7 @@ export default function SuperKey({ user, currentBalance = 0, transactions = [], 
         createReceiptAndSave
     } = useThermalReceipt();
 
-    // بيانات النموذج
+        // بيانات النموذج
     const [formData, setFormData] = useState({
         amount: '',
         commission: '0', // العمولة تبدأ بصفر
@@ -153,6 +162,11 @@ export default function SuperKey({ user, currentBalance = 0, transactions = [], 
                 // تحديث الرصيد
                 setBalance(result.new_balance);
 
+                // تحديث الرصيد النقدي إذا كان متوفراً
+                if (result.new_cash_balance !== undefined) {
+                    setCashBalance(result.new_cash_balance);
+                }
+
                 // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
                 if (result.updated_report) {
                     setTodayReport({
@@ -257,9 +271,17 @@ export default function SuperKey({ user, currentBalance = 0, transactions = [], 
 
                             {/* عرض الرصيد */}
                             <div className="bg-yellow-50 rounded-xl p-6 mb-6">
-                                <h3 className="text-lg font-semibold text-yellow-800 mb-2">الرصيد المتبقي</h3>
+                                <h3 className="text-lg font-semibold text-yellow-800 mb-2">رصيد سوبر كي</h3>
                                 <p className="text-3xl font-bold text-yellow-700">
                                     {Math.floor(balance).toLocaleString()} د.ع
+                                </p>
+                            </div>
+
+                            {/* عرض الرصيد النقدي الحالي */}
+                            <div className="bg-green-50 rounded-xl p-6 mb-6">
+                                <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد النقدي الحالي</h3>
+                                <p className="text-3xl font-bold text-green-700">
+                                    {Math.floor(cashBalance).toLocaleString()} د.ع
                                 </p>
                             </div>
 
@@ -549,7 +571,7 @@ export default function SuperKey({ user, currentBalance = 0, transactions = [], 
                                             <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-3">
                                                 <span className="text-2xl">💰</span>
                                             </div>
-                                            <h4 className="text-sm font-semibold text-yellow-700 mb-2">الرصيد المتبقي</h4>
+                                            <h4 className="text-sm font-semibold text-yellow-700 mb-2">رصيد سوبر كي</h4>
                                             <p className="text-2xl font-bold text-yellow-800">
                                                 {detailedReportData ? Math.floor(detailedReportData.current_balance).toLocaleString() : Math.floor(balance).toLocaleString()}
                                             </p>
