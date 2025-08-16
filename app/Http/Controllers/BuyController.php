@@ -55,6 +55,13 @@ class BuyController extends Controller
         $iqd_cash = $openingBalance ? $openingBalance->total_iqd : 0; // استخدام total_iqd بدلاً من iqd_cash
         $exchangeRate = $openingBalance ? $openingBalance->exchange_rate : 1500;
 
+        // حساب الرصيد النقدي الموحد (نقا + رافدين + راشد + زين كاش + سوبر كي)
+        $totalCashBalance = ($openingBalance ? $openingBalance->naqa : 0) +
+                           ($openingBalance ? $openingBalance->rafidain : 0) +
+                           ($openingBalance ? $openingBalance->rashid : 0) +
+                           ($openingBalance ? $openingBalance->zain_cash : 0) +
+                           ($openingBalance ? $openingBalance->super_key : 0);
+
         // Calculate total dollars bought (زيادة في الدولار)
         $totalDollarsBought = BuyTransaction::where('user_id', $sessionUser['id'])
             ->sum('dollar_amount');
@@ -71,6 +78,9 @@ class BuyController extends Controller
             ->sum('total_amount');
         $currentIQDBalance = $iqd_cash - $totalAmountWithCommission; // نقص الدينار العراقي
 
+        // حساب الرصيد النقدي الحالي (ينقص بسبب شراء الدولارات)
+        $currentCashBalance = $totalCashBalance - $totalAmountWithCommission;
+
         // Get recent transactions
         $transactions = BuyTransaction::where('user_id', $sessionUser['id'])
             ->orderBy('created_at', 'desc')
@@ -84,8 +94,10 @@ class BuyController extends Controller
             'user' => $sessionUser,
             'currentDollarBalance' => $currentDollarBalance, // الرصيد الحالي بالدولار
             'currentIQDBalance' => $currentIQDBalance, // الرصيد الحالي بالدينار العراقي
+            'currentCashBalance' => $currentCashBalance, // الرصيد النقدي الحالي
             'openingDollarBalance' => $dollarBalance, // الرصيد الافتتاحي بالدولار
             'openingIQDBalance' => $dollarBalance * $exchangeRate, // الرصيد الافتتاحي بالدينار العراقي
+            'openingCashBalance' => $totalCashBalance, // الرصيد النقدي الافتتاحي
             'exchangeRate' => $exchangeRate,
             'transactions' => $transactions,
             'quickReport' => [
@@ -121,6 +133,13 @@ class BuyController extends Controller
             $dollarBalance = $openingBalance ? $openingBalance->usd_cash : 0;
             $iqd_cash = $openingBalance ? $openingBalance->total_iqd : 0; // إضافة المتغير المفقود
             $exchangeRateOpening = $openingBalance ? $openingBalance->exchange_rate : 1500;
+
+            // حساب الرصيد النقدي الموحد (نقا + رافدين + راشد + زين كاش + سوبر كي)
+            $totalCashBalance = ($openingBalance ? $openingBalance->naqa : 0) +
+                               ($openingBalance ? $openingBalance->rafidain : 0) +
+                               ($openingBalance ? $openingBalance->rashid : 0) +
+                               ($openingBalance ? $openingBalance->zain_cash : 0) +
+                               ($openingBalance ? $openingBalance->super_key : 0);
 
             // Calculate total dollars bought previously
             $totalDollarsBought = BuyTransaction::where('user_id', $sessionUser['id'])
@@ -179,12 +198,16 @@ class BuyController extends Controller
             $updatedTotalOperations = BuyTransaction::where('user_id', $sessionUser['id'])->count();
             $updatedCurrentIQDBalance = $iqd_cash - $updatedTotalAmountWithCommission;
 
+            // حساب الرصيد النقدي المحدث
+            $updatedCurrentCashBalance = $totalCashBalance - $updatedTotalAmountWithCommission;
+
             return response()->json([
                 'success' => true,
                 'message' => 'تم إجراء عملية الشراء بنجاح',
                 'transaction' => $transaction,
                 'new_dollar_balance' => $newDollarBalance,
                 'new_iqd_balance' => $updatedCurrentIQDBalance,
+                'new_cash_balance' => $updatedCurrentCashBalance, // الرصيد النقدي المحدث
                 'updated_report' => [
                     'charges' => $updatedTotalIQDSpent,
                     'payments' => 0,

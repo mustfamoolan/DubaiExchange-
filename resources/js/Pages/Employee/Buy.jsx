@@ -8,14 +8,17 @@ export default function Buy({
     user,
     currentDollarBalance = 0,
     currentIQDBalance = 0,
+    currentCashBalance = 0, // الرصيد النقدي الحالي
     openingDollarBalance = 0,
     openingIQDBalance = 0,
+    openingCashBalance = 0, // الرصيد النقدي الافتتاحي
     exchangeRate = 1500,
     transactions = [],
     quickReport = { charges: 0, payments: 0, operations: 0, dollars_bought: 0 }
 }) {
     const [dollarBalance, setDollarBalance] = useState(currentDollarBalance);
     const [iqd_balance, setIqd_balance] = useState(currentIQDBalance);
+    const [cashBalance, setCashBalance] = useState(currentCashBalance); // الرصيد النقدي
     const [todayReport, setTodayReport] = useState({
         charges: quickReport.charges,
         payments: quickReport.payments,
@@ -124,8 +127,10 @@ export default function Buy({
             return;
         }
 
-        if (parseFloat(formData.dollarAmount) > dollarBalance) {
-            alert(`الرصيد غير كافي. الرصيد المتاح: ${dollarBalance.toLocaleString()} $`);
+        // التحقق من كفاية الرصيد النقدي (لأننا ندفع نقداً لشراء الدولارات)
+        const totalCost = getTotalIQD();
+        if (totalCost > cashBalance) {
+            alert(`الرصيد النقدي غير كافي. المطلوب: ${Math.floor(totalCost).toLocaleString()} د.ع، المتاح: ${Math.floor(cashBalance).toLocaleString()} د.ع`);
             return;
         }
 
@@ -153,6 +158,7 @@ export default function Buy({
                 // تحديث الأرصدة
                 setDollarBalance(result.new_dollar_balance);
                 setIqd_balance(result.new_iqd_balance);
+                setCashBalance(result.new_cash_balance); // تحديث الرصيد النقدي
 
                 // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
                 if (result.updated_report) {
@@ -214,8 +220,10 @@ export default function Buy({
             return;
         }
 
-        if (parseFloat(formData.dollarAmount) > dollarBalance) {
-            alert(`الرصيد غير كافي. الرصيد المتاح: ${dollarBalance.toLocaleString()} $`);
+        // التحقق من كفاية الرصيد النقدي (لأننا ندفع نقداً لشراء الدولارات)
+        const totalCost = getTotalIQD();
+        if (totalCost > cashBalance) {
+            alert(`الرصيد النقدي غير كافي. المطلوب: ${Math.floor(totalCost).toLocaleString()} د.ع، المتاح: ${Math.floor(cashBalance).toLocaleString()} د.ع`);
             return;
         }
 
@@ -244,6 +252,7 @@ export default function Buy({
                 // تحديث الأرصدة
                 setDollarBalance(result.new_dollar_balance);
                 setIqd_balance(result.new_iqd_balance);
+                setCashBalance(result.new_cash_balance); // تحديث الرصيد النقدي
 
                 // تحديث تقرير اليوم
                 if (result.updated_report) {
@@ -367,6 +376,14 @@ export default function Buy({
                                         {Math.floor(dollarBalance * exchangeRate).toLocaleString()} د.ع
                                     </p>
                                 </div>
+
+                                {/* الرصيد النقدي الحالي */}
+                                <div className="bg-green-50 rounded-xl p-6">
+                                    <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد النقدي الحالي</h3>
+                                    <p className="text-3xl font-bold text-green-700">
+                                        {Math.floor(cashBalance).toLocaleString()} د.ع
+                                    </p>
+                                </div>
                             </div>
 
                             {/* عرض الرصيد الافتتاحي */}
@@ -380,10 +397,16 @@ export default function Buy({
                                             ${openingDollarBalance > 0 ? Math.floor(openingDollarBalance).toLocaleString() : '0'}
                                         </span>
                                     </div>
-                                    <div className="flex justify-between items-center">
+                                    <div className="flex justify-between items-center mb-2">
                                         <span className="text-sm font-medium text-gray-700">بالدينار:</span>
                                         <span className="font-bold text-gray-800">
                                             {openingIQDBalance > 0 ? Math.floor(openingIQDBalance).toLocaleString() : '0'} د.ع
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm font-medium text-gray-700">نقدي:</span>
+                                        <span className="font-bold text-gray-800">
+                                            {openingCashBalance > 0 ? Math.floor(openingCashBalance).toLocaleString() : '0'} د.ع
                                         </span>
                                     </div>
                                 </div>
@@ -475,9 +498,9 @@ export default function Buy({
                                         max={dollarBalance}
                                         onChange={(e) => handleInputChange('dollarAmount', e.target.value)}
                                     />
-                                    {formData.dollarAmount && parseFloat(formData.dollarAmount) > dollarBalance && (
+                                    {formData.dollarAmount && getTotalIQD() > cashBalance && (
                                         <p className="text-sm text-red-600 mt-1">
-                                            الرصيد غير كافي. المتاح: ${Math.floor(dollarBalance).toLocaleString()}
+                                            الرصيد النقدي غير كافي. المطلوب: {Math.floor(getTotalIQD()).toLocaleString()} د.ع، المتاح: {Math.floor(cashBalance).toLocaleString()} د.ع
                                         </p>
                                     )}
                                 </div>
@@ -488,9 +511,10 @@ export default function Buy({
                                     </label>
                                     <input
                                         type="number"
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-right bg-gray-50"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-right"
+                                        placeholder={`السعر الافتراضي: ${Math.floor(exchangeRate)}`}
                                         value={Math.floor(formData.exchangeRate)}
-                                        readOnly
+                                        onChange={(e) => handleInputChange('exchangeRate', e.target.value)}
                                     />
                                 </div>
 
@@ -548,7 +572,7 @@ export default function Buy({
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <button
                                     onClick={handleSaveAndPrint}
-                                    disabled={isSubmitting || !formData.dollarAmount || parseFloat(formData.dollarAmount) > dollarBalance}
+                                    disabled={isSubmitting || !formData.dollarAmount || getTotalIQD() > cashBalance}
                                     className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-xl transition-colors duration-200 flex items-center justify-center"
                                 >
                                     <span className="ml-2">📄</span>
@@ -556,7 +580,7 @@ export default function Buy({
                                 </button>
                                 <button
                                     onClick={handleSave}
-                                    disabled={isSubmitting || !formData.dollarAmount || parseFloat(formData.dollarAmount) > dollarBalance}
+                                    disabled={isSubmitting || !formData.dollarAmount || getTotalIQD() > cashBalance}
                                     className="bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-xl transition-colors duration-200 flex items-center justify-center"
                                 >
                                     <span className="ml-2">💾</span>
