@@ -7,6 +7,7 @@ use Inertia\Inertia;
 use App\Models\ExchangeTransaction;
 use App\Models\User;
 use App\Models\OpeningBalance;
+use App\Services\CashBalanceService;
 use Illuminate\Support\Facades\DB;
 
 class ExchangeController extends Controller
@@ -49,9 +50,14 @@ class ExchangeController extends Controller
             return $sessionUser;
         }
 
+        // الحصول على الرصيد النقدي المركزي
+        $cashBalanceService = new CashBalanceService();
+        $currentCashBalance = $cashBalanceService->getCurrentBalance();
+
         // الحصول على الرصيد الافتتاحي النقدي
         $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
         $currentNaqaBalance = $openingBalance ? $openingBalance->naqa : 0;
+        $openingCashBalance = $currentNaqaBalance; // استخدام الرصيد الافتتاحي للموظف
 
         // حساب إجمالي المستلم (من سندات القبض)
         $totalReceived = \App\Models\ReceiveTransaction::where('user_id', $sessionUser['id'])
@@ -87,7 +93,9 @@ class ExchangeController extends Controller
             'currentBalance' => $currentBalance,
             'openingBalance' => $currentNaqaBalance,
             'transactions' => $transactions,
-            'quickReport' => $quickReport
+            'quickReport' => $quickReport,
+            'currentCashBalance' => $currentCashBalance,
+            'openingCashBalance' => $openingCashBalance
         ]);
     }
 
@@ -109,7 +117,19 @@ class ExchangeController extends Controller
         DB::beginTransaction();
 
         try {
-            // حساب الرصيد الحالي
+            // استخدام CashBalanceService لتحديث الرصيد المركزي
+            $cashBalanceService = new CashBalanceService();
+            $currentCashBalance = $cashBalanceService->getCurrentBalance();
+
+            // التحقق من كفاية الرصيد المركزي
+            if ($currentCashBalance < $request->amount) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'الرصيد النقدي المركزي غير كافي لإجراء هذه العملية'
+                ], 400);
+            }
+
+            // حساب الرصيد الحالي للموظف (للسجلات القديمة)
             $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
             $currentNaqaBalance = $openingBalance ? $openingBalance->naqa : 0;
 
@@ -123,14 +143,6 @@ class ExchangeController extends Controller
 
             $previousBalance = $currentNaqaBalance + $totalReceived - $totalExchanged;
             $newBalance = $previousBalance - $request->amount;
-
-            // التحقق من كفاية الرصيد
-            if ($newBalance < 0) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'الرصيد غير كافي لإجراء هذه العملية'
-                ], 400);
-            }
 
             // Create transaction record
             $transaction = ExchangeTransaction::create([
@@ -175,6 +187,9 @@ class ExchangeController extends Controller
                 }
             }
 
+            // تحديث الرصيد النقدي المركزي
+            $newCashBalance = $cashBalanceService->updateForExchangeTransaction($request->amount);
+
             DB::commit();
 
             // إعادة حساب التقارير بعد العملية الجديدة
@@ -194,6 +209,7 @@ class ExchangeController extends Controller
                 'message' => 'تم إجراء عملية الصرف بنجاح',
                 'transaction' => $transaction,
                 'new_balance' => $newBalance,
+                'new_cash_balance' => $newCashBalance,
                 'updated_report' => [
                     'exchanged_today' => $updatedExchangedToday,
                     'operations' => $updatedOperations,

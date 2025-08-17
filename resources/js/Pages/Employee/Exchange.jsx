@@ -5,14 +5,19 @@ import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
 import ThermalReceipt from '../../Components/ThermalReceipt';
 import { useReceiveExchangeReceipt } from '../../Hooks/useReceiveExchangeReceipt';
 import ReceiveExchangeThermalReceipt from '../../Components/ReceiveExchangeThermalReceipt';
+import { useCentralCashBalance } from '../../Hooks/useCentralCashBalance';
 
 export default function Exchange({
     user,
     currentBalance = 0,
     openingBalance = 0,
     transactions = [],
-    quickReport = { exchanged_today: 0, operations: 0, total_exchanged: 0, total_received: 0 }
+    quickReport = { exchanged_today: 0, operations: 0, total_exchanged: 0, total_received: 0 },
+    currentCashBalance = 0,
+    openingCashBalance = 0
 }) {
+    // استخدام نظام الرصيد النقدي المركزي
+    const { centralCashBalance, updateBalanceAfterTransaction } = useCentralCashBalance(currentCashBalance);
     const [balance, setBalance] = useState(currentBalance);
     const [showDetailedReport, setShowDetailedReport] = useState(false);
     const [todayReport, setTodayReport] = useState({
@@ -327,8 +332,10 @@ export default function Exchange({
         if (response.ok) {
             const result = await response.json();
 
-            // تحديث الرصيد
-            setBalance(result.new_balance);
+            // تحديث الرصيد المركزي
+            if (result.new_cash_balance !== undefined) {
+                updateBalanceAfterTransaction(result.new_cash_balance);
+            }
 
             // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
             if (result.updated_report) {
@@ -399,8 +406,10 @@ export default function Exchange({
             if (response.ok) {
                 const result = await response.json();
 
-                // تحديث الرصيد
-                setBalance(result.new_balance);
+                // تحديث الرصيد المركزي
+                if (result.new_cash_balance !== undefined) {
+                    updateBalanceAfterTransaction(result.new_cash_balance);
+                }
 
                 // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
                 if (result.updated_report) {
@@ -521,16 +530,16 @@ export default function Exchange({
                                 <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
                                     <span className="text-2xl text-red-600">💸</span>
                                 </div>
-                                <h2 className="text-xl font-bold text-gray-900">الرصيد الحالي (نقداً)</h2>
+                                <h2 className="text-xl font-bold text-gray-900">الرصيد النقدي المركزي</h2>
                             </div>
 
                             {/* عرض الرصيد */}
                             <div className="space-y-4 mb-6">
                                 {/* الرصيد الحالي */}
                                 <div className="bg-green-50 rounded-xl p-6">
-                                    <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد الحالي</h3>
+                                    <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد النقدي المركزي</h3>
                                     <p className="text-3xl font-bold text-green-700">
-                                        {Math.floor(balance).toLocaleString()} د.ع
+                                        {Math.floor(centralCashBalance).toLocaleString()} د.ع
                                     </p>
                                 </div>
 
@@ -539,7 +548,7 @@ export default function Exchange({
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm font-medium text-gray-700">الرصيد الافتتاحي:</span>
                                         <span className="font-bold text-gray-800">
-                                            {openingBalance > 0 ? Math.floor(openingBalance).toLocaleString() : '0'} د.ع
+                                            {openingCashBalance > 0 ? Math.floor(openingCashBalance).toLocaleString() : '0'} د.ع
                                         </span>
                                     </div>
                                 </div>
