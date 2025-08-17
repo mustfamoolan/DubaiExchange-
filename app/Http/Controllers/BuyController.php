@@ -136,7 +136,6 @@ class BuyController extends Controller
         $request->validate([
             'dollarAmount' => 'required|numeric|min:0.01',
             'exchangeRate' => 'required|numeric|min:0.01',
-            'commission' => 'nullable|numeric|min:0',
             'documentNumber' => 'required|string',
             'notes' => 'nullable|string|max:1000'
         ]);
@@ -167,8 +166,7 @@ class BuyController extends Controller
             $dollarAmount = $request->dollarAmount;
             $exchangeRate = $request->exchangeRate;
             $iqd_amount = $dollarAmount * $exchangeRate; // المبلغ بالدينار العراقي
-            $commission = $request->commission ?? BuyTransaction::calculateCommission($iqd_amount);
-            $totalAmount = $iqd_amount + $commission; // المبلغ الكلي
+            $totalAmount = $iqd_amount; // المبلغ الكلي بدون عمولة
 
             // التحقق من الرصيد النقدي المركزي
             $currentCashBalance = CashBalanceService::getCurrentBalance($sessionUser['id']);
@@ -198,7 +196,7 @@ class BuyController extends Controller
                 'iqd_amount' => $iqd_amount,
                 'exchange_rate' => $exchangeRate,
                 'dollar_amount' => $dollarAmount,
-                'commission' => $commission,
+                'commission' => 0,
                 'total_amount' => $totalAmount,
                 'balance_change' => $dollarAmount, // زيادة في الدولار
                 'previous_balance' => $currentDollarBalance,

@@ -131,7 +131,6 @@ class SellController extends Controller
         $request->validate([
             'dollarAmount' => 'required|numeric|min:0.01',
             'exchangeRate' => 'required|numeric|min:0.01',
-            'commission' => 'nullable|numeric|min:0',
             'documentNumber' => 'required|string',
             'notes' => 'nullable|string|max:1000'
         ]);
@@ -162,8 +161,7 @@ class SellController extends Controller
 
             $exchangeRate = $request->exchangeRate;
             $iqd_amount = $dollarAmount * $exchangeRate; // المبلغ بالدينار العراقي
-            $commission = $request->commission ?? SellTransaction::calculateCommission($iqd_amount);
-            $totalAmount = $iqd_amount + $commission; // المبلغ الكلي
+            $totalAmount = $iqd_amount; // المبلغ الكلي بدون عمولة
 
             // Calculate new balances after transaction
             $newDollarBalance = $currentDollarBalance - $dollarAmount; // نقص الدولار
@@ -175,7 +173,7 @@ class SellController extends Controller
                 'dollar_amount' => $dollarAmount,
                 'exchange_rate' => $exchangeRate,
                 'iqd_amount' => $iqd_amount,
-                'commission' => $commission,
+                'commission' => 0,
                 'total_amount' => $totalAmount,
                 'balance_change' => -$dollarAmount, // نقص في الدولار
                 'previous_balance' => $currentDollarBalance,

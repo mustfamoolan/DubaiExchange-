@@ -48,7 +48,6 @@ export default function Buy({
         currentTime: new Date().toLocaleString('ar-EG'),
         dollarAmount: '',
         exchangeRate: exchangeRate, // سعر الصرف من قاعدة البيانات
-        commission: '0', // العمولة تبدأ بصفر
         notes: '',
         employeeName: user?.name || 'الموظف الحالي'
     });
@@ -130,11 +129,9 @@ export default function Buy({
         return exchangeRate > 0 ? dollarAmount * exchangeRate : 0;
     };
 
-    // حساب المبلغ الكلي بالدينار العراقي (المبلغ + العمولة)
+    // حساب المبلغ الكلي بالدينار العراقي (نفس المبلغ بدون عمولة)
     const getTotalIQD = () => {
-        const iqd_amount = getIQDAmount();
-        const commission = parseFloat(formData.commission) || 0;
-        return iqd_amount + commission;
+        return getIQDAmount();
     };
 
     // إرسال معاملة الشراء
@@ -163,7 +160,6 @@ export default function Buy({
                 body: JSON.stringify({
                     dollarAmount: formData.dollarAmount,
                     exchangeRate: formData.exchangeRate,
-                    commission: formData.commission,
                     documentNumber: formData.documentNumber,
                     notes: formData.notes
                 })
@@ -201,7 +197,6 @@ export default function Buy({
                 setFormData(prev => ({
                     ...prev,
                     dollarAmount: '',
-                    commission: '0', // إعادة العمولة إلى صفر
                     notes: '',
                     currentTime: new Date().toLocaleString('ar-EG') // تحديث التوقيت
                 }));
@@ -267,7 +262,6 @@ export default function Buy({
                 body: JSON.stringify({
                     dollarAmount: formData.dollarAmount,
                     exchangeRate: formData.exchangeRate,
-                    commission: formData.commission,
                     documentNumber: formData.documentNumber,
                     notes: formData.notes
                 })
@@ -307,7 +301,6 @@ export default function Buy({
                     dollar_amount: parseFloat(formData.dollarAmount),
                     exchange_rate: parseFloat(formData.exchangeRate),
                     iqd_amount: getIQDAmount(),
-                    commission: parseFloat(formData.commission || 0),
                     total_amount: getTotalIQD(),
                     notes: formData.notes,
                     customer_phone: null
@@ -318,7 +311,6 @@ export default function Buy({
                     setFormData(prev => ({
                         ...prev,
                         dollarAmount: '',
-                        commission: '0', // إعادة العمولة إلى صفر
                         notes: '',
                         currentTime: new Date().toLocaleString('ar-EG')
                     }));
@@ -546,23 +538,10 @@ export default function Buy({
                                         onChange={(e) => handleInputChange('exchangeRate', e.target.value)}
                                     />
                                 </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
-                                        العمولة (بالدينار العراقي):
-                                    </label>
-                                    <input
-                                        type="number"
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-right"
-                                        placeholder="0 (اختياري)"
-                                        value={formData.commission}
-                                        onChange={(e) => handleInputChange('commission', e.target.value)}
-                                    />
-                                </div>
                             </div>
 
                             {/* عرض المبالغ الكلية */}
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                                 <div className="bg-cyan-50 rounded-xl p-4">
                                     <div className="text-center">
                                         <span className="text-sm font-semibold text-cyan-700">المبلغ بالدولار</span>
@@ -573,12 +552,6 @@ export default function Buy({
                                     <div className="text-center">
                                         <span className="text-sm font-semibold text-orange-700">المبلغ بالدينار</span>
                                         <p className="text-xl font-bold text-orange-800">{Math.floor(getIQDAmount()).toLocaleString()} د.ع</p>
-                                    </div>
-                                </div>
-                                <div className="bg-green-50 rounded-xl p-4">
-                                    <div className="text-center">
-                                        <span className="text-sm font-semibold text-green-700">المبلغ الكلي</span>
-                                        <p className="text-xl font-bold text-green-800">{getTotalIQD() > 0 ? Math.floor(getTotalIQD()).toLocaleString() : '0'} د.ع</p>
                                     </div>
                                 </div>
                             </div>
