@@ -9,11 +9,11 @@ use Illuminate\Support\Facades\DB;
 class CashBalanceService
 {
     /**
-     * الحصول على الرصيد النقدي الحالي
+     * الحصول على الرصيد النقدي الحالي لمستخدم محدد
      */
-    public static function getCurrentBalance(): float
+    public static function getCurrentBalance(int $userId): float
     {
-        return CashBalance::getCurrentBalance();
+        return CashBalance::getCurrentBalance($userId);
     }
 
     /**
@@ -24,10 +24,10 @@ class CashBalanceService
         $openingBalance = OpeningBalance::where('user_id', $userId)->first();
         $naqaBalance = $openingBalance ? $openingBalance->naqa : 0;
 
-        // إذا لم يكن هناك رصيد مركزي، نبدأ من الرصيد الافتتاحي
-        $cashBalance = CashBalance::first();
+        // إذا لم يكن هناك رصيد مركزي لهذا المستخدم، نبدأ من الرصيد الافتتاحي
+        $cashBalance = CashBalance::where('user_id', $userId)->first();
         if (!$cashBalance) {
-            CashBalance::setOpeningBalance($naqaBalance);
+            CashBalance::setOpeningBalance($userId, $naqaBalance);
         }
     }
 
@@ -35,9 +35,9 @@ class CashBalanceService
      * تحديث الرصيد النقدي بعد المعاملة
      */
     public static function updateAfterTransaction(
+        int $userId,
         float $previousBalance,
         float $balanceChange,
-        int $userId,
         string $transactionType,
         string $source,
         int $transactionId,
@@ -47,8 +47,8 @@ class CashBalanceService
         $newBalance = $previousBalance + $balanceChange;
 
         CashBalance::updateBalance(
-            $newBalance,
             $userId,
+            $newBalance,
             $transactionType,
             $source,
             $transactionId,
@@ -63,15 +63,15 @@ class CashBalanceService
      * تحديث الرصيد لمعاملات الشحن والدفع (Banking)
      */
     public static function updateForBankingTransaction(
+        int $userId,
         string $transactionType, // 'charge' or 'payment'
         float $amount, // المبلغ الأساسي فقط
         float $commission, // العمولة منفصلة
-        int $userId,
         string $source, // 'zain_cash', 'rafidain', 'rashid', 'super_key'
         int $transactionId,
         string $notes = null
     ): array {
-        $previousBalance = self::getCurrentBalance();
+        $previousBalance = self::getCurrentBalance($userId);
 
         // المنطق الصحيح:
         if ($transactionType === 'charge') {
@@ -83,9 +83,9 @@ class CashBalanceService
         }
 
         $newBalance = self::updateAfterTransaction(
+            $userId,
             $previousBalance,
             $balanceChange,
-            $userId,
             $transactionType,
             $source,
             $transactionId,
@@ -102,20 +102,20 @@ class CashBalanceService
      * تحديث الرصيد لمعاملات البيع
      */
     public static function updateForSellTransaction(
-        float $totalIQD,
         int $userId,
+        float $totalIQD,
         int $transactionId,
         string $notes = null
     ): array {
-        $previousBalance = self::getCurrentBalance();
+        $previousBalance = self::getCurrentBalance($userId);
 
         // البيع: نستلم نقدية مقابل الدولار، فيزيد الرصيد النقدي
         $balanceChange = $totalIQD;
 
         $newBalance = self::updateAfterTransaction(
+            $userId,
             $previousBalance,
             $balanceChange,
-            $userId,
             'sell',
             'currency_exchange',
             $transactionId,
@@ -134,20 +134,20 @@ class CashBalanceService
      * تحديث الرصيد لمعاملات الشراء
      */
     public static function updateForBuyTransaction(
-        float $totalIQD,
         int $userId,
+        float $totalIQD,
         int $transactionId,
         string $notes = null
     ): array {
-        $previousBalance = self::getCurrentBalance();
+        $previousBalance = self::getCurrentBalance($userId);
 
         // الشراء: نعطي نقدية مقابل الدولار، فينقص الرصيد النقدي
         $balanceChange = -$totalIQD;
 
         $newBalance = self::updateAfterTransaction(
+            $userId,
             $previousBalance,
             $balanceChange,
-            $userId,
             'buy',
             'currency_exchange',
             $transactionId,
@@ -166,20 +166,20 @@ class CashBalanceService
      * تحديث الرصيد لمعاملات الصرف
      */
     public static function updateForExchangeTransaction(
-        float $amount,
         int $userId,
+        float $amount,
         int $transactionId,
         string $notes = null
     ): array {
-        $previousBalance = self::getCurrentBalance();
+        $previousBalance = self::getCurrentBalance($userId);
 
         // الصرف: نعطي نقدية، فينقص الرصيد النقدي
         $balanceChange = -$amount;
 
         $newBalance = self::updateAfterTransaction(
+            $userId,
             $previousBalance,
             $balanceChange,
-            $userId,
             'exchange',
             'exchange',
             $transactionId,
@@ -198,20 +198,20 @@ class CashBalanceService
      * تحديث الرصيد لمعاملات القبض
      */
     public static function updateForReceiveTransaction(
-        float $amountInIQD,
         int $userId,
+        float $amountInIQD,
         int $transactionId,
         string $notes = null
     ): array {
-        $previousBalance = self::getCurrentBalance();
+        $previousBalance = self::getCurrentBalance($userId);
 
         // القبض: نستلم نقدية، فيزيد الرصيد النقدي
         $balanceChange = $amountInIQD;
 
         $newBalance = self::updateAfterTransaction(
+            $userId,
             $previousBalance,
             $balanceChange,
-            $userId,
             'receive',
             'receive',
             $transactionId,
@@ -227,32 +227,65 @@ class CashBalanceService
     }
 
     /**
-     * تعيين الرصيد الافتتاحي
+     * تحديث الرصيد لمعاملات السافرين
      */
-    public static function setOpeningBalance(float $openingBalance): void
-    {
-        CashBalance::setOpeningBalance($openingBalance);
+    public static function updateForTravelerTransaction(
+        int $userId,
+        float $totalIqdAmount,
+        int $transactionId,
+        string $notes = null
+    ): array {
+        $previousBalance = self::getCurrentBalance($userId);
+
+        // معاملة السافرين: نستلم نقدية مقابل الدولار، فيزيد الرصيد النقدي
+        $balanceChange = $totalIqdAmount;
+
+        $newBalance = self::updateAfterTransaction(
+            $userId,
+            $previousBalance,
+            $balanceChange,
+            'traveler',
+            'traveler_exchange',
+            $transactionId,
+            $totalIqdAmount,
+            $notes
+        );
+
+        return [
+            'previous_balance' => $previousBalance,
+            'new_balance' => $newBalance,
+            'balance_change' => $balanceChange
+        ];
     }
 
     /**
-     * الحصول على إحصائيات سريعة
+     * تعيين الرصيد الافتتاحي لمستخدم محدد
      */
-    public static function getQuickStats(): array
+    public static function setOpeningBalance(int $userId, float $openingBalance): void
     {
-        return CashBalance::getQuickStats();
+        CashBalance::setOpeningBalance($userId, $openingBalance);
     }
 
     /**
-     * إضافة رصيد افتتاحي فقط إذا لم يكن موجوداً
+     * الحصول على إحصائيات سريعة لمستخدم محدد
+     */
+    public static function getQuickStats(int $userId): array
+    {
+        return CashBalance::getQuickStats($userId);
+    }
+
+    /**
+     * إضافة رصيد افتتاحي فقط إذا لم يكن موجوداً لمستخدم محدد
      * يستخدم الرصيد النقدي من OpeningBalance إذا لم يكن محدد
      */
-    public static function initializeIfNotExists(int $userId = null, float $openingBalance = 0): void
+    public static function initializeIfNotExists(int $userId, float $openingBalance = 0): void
     {
-        if (!CashBalance::first()) {
+        $cashBalance = CashBalance::where('user_id', $userId)->first();
+        if (!$cashBalance) {
             if ($userId) {
                 self::initializeFromOpeningBalance($userId);
             } else {
-                self::setOpeningBalance($openingBalance);
+                self::setOpeningBalance($userId, $openingBalance);
             }
         }
     }

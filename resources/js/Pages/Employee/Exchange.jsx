@@ -6,6 +6,8 @@ import ThermalReceipt from '../../Components/ThermalReceipt';
 import { useReceiveExchangeReceipt } from '../../Hooks/useReceiveExchangeReceipt';
 import ReceiveExchangeThermalReceipt from '../../Components/ReceiveExchangeThermalReceipt';
 import { useCentralCashBalance } from '../../Hooks/useCentralCashBalance';
+import { useCentralDollarBalance } from '../../Hooks/useCentralDollarBalance';
+import { generateUniqueReference } from '../../Utils/generateUniqueReference';
 
 export default function Exchange({
     user,
@@ -14,10 +16,18 @@ export default function Exchange({
     transactions = [],
     quickReport = { exchanged_today: 0, operations: 0, total_exchanged: 0, total_received: 0 },
     currentCashBalance = 0,
+    currentCentralDollarBalance = 0,
     openingCashBalance = 0
 }) {
     // استخدام نظام الرصيد النقدي المركزي
     const { centralCashBalance, updateBalanceAfterTransaction } = useCentralCashBalance(currentCashBalance);
+
+    // استخدام نظام الرصيد المركزي للدولار
+    const {
+        centralDollarBalance,
+        updateBalanceAfterTransaction: updateDollarBalance
+    } = useCentralDollarBalance(currentCentralDollarBalance);
+
     const [balance, setBalance] = useState(currentBalance);
     const [showDetailedReport, setShowDetailedReport] = useState(false);
     const [todayReport, setTodayReport] = useState({
@@ -53,6 +63,7 @@ export default function Exchange({
         invoiceNumber: '',
         currentTime: new Date().toLocaleString('ar-EG'),
         amount: '',
+        currency: 'دينار عراقي', // العملة الافتراضية
         description: '',
         employeeName: user?.name || 'الموظف الحالي',
         paidTo: '',
@@ -106,12 +117,8 @@ export default function Exchange({
     // توليد رقم مرجع جديد
     useEffect(() => {
         const generateRefNumber = () => {
-            const now = new Date();
-            const dateStr = now.getFullYear().toString() +
-                           (now.getMonth() + 1).toString().padStart(2, '0') +
-                           now.getDate().toString().padStart(2, '0');
-            const timeStr = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-            setReferenceNumber(`EXC${dateStr}${timeStr}`);
+            const uniqueRef = generateUniqueReference('EXC');
+            setReferenceNumber(uniqueRef);
         };
 
         generateRefNumber();
@@ -130,7 +137,7 @@ export default function Exchange({
     const fetchCustomers = async () => {
         setIsLoadingCustomers(true);
         try {
-            const response = await fetch('/api/customers/search', {
+            const response = await fetch('/api/employee/customers/search', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -192,7 +199,7 @@ export default function Exchange({
                 opening_balance_usd: newCustomerData.opening_balance_usd || '0'
             });
 
-            const response = await fetch('/api/customers', {
+            const response = await fetch('/api/employee/customers', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -322,6 +329,7 @@ export default function Exchange({
             body: JSON.stringify({
                 invoiceNumber: formData.invoiceNumber,
                 amount: formData.amount,
+                currency: formData.currency,
                 description: formData.description,
                 paidTo: formData.paidTo,
                 selectedCustomer: formData.selectedCustomer,
@@ -335,6 +343,11 @@ export default function Exchange({
             // تحديث الرصيد المركزي
             if (result.new_cash_balance !== undefined) {
                 updateBalanceAfterTransaction(result.new_cash_balance);
+            }
+
+            // تحديث الرصيد المركزي للدولار
+            if (result.new_central_dollar_balance !== undefined) {
+                updateDollarBalance(result.new_central_dollar_balance);
             }
 
             // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
@@ -351,6 +364,7 @@ export default function Exchange({
             setFormData(prev => ({
                 ...prev,
                 amount: '',
+                currency: 'دينار عراقي',
                 description: '',
                 paidTo: '',
                 notes: '',
@@ -396,6 +410,7 @@ export default function Exchange({
                 body: JSON.stringify({
                     invoiceNumber: formData.invoiceNumber,
                     amount: formData.amount,
+                    currency: formData.currency,
                     description: formData.description,
                     paidTo: formData.paidTo,
                     selectedCustomer: formData.selectedCustomer,
@@ -409,6 +424,11 @@ export default function Exchange({
                 // تحديث الرصيد المركزي
                 if (result.new_cash_balance !== undefined) {
                     updateBalanceAfterTransaction(result.new_cash_balance);
+                }
+
+                // تحديث الرصيد المركزي للدولار
+                if (result.new_central_dollar_balance !== undefined) {
+                    updateDollarBalance(result.new_central_dollar_balance);
                 }
 
                 // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
@@ -425,6 +445,7 @@ export default function Exchange({
                 setFormData(prev => ({
                     ...prev,
                     amount: '',
+                    currency: 'دينار عراقي',
                     description: '',
                     paidTo: '',
                     selectedCustomer: null,
@@ -481,7 +502,7 @@ export default function Exchange({
                 person_name: exchangeType === 'customer'
                     ? (formData.selectedCustomer ? formData.selectedCustomer.name : formData.paidTo)
                     : 'صرف عادي',
-                currency: 'دينار عراقي',
+                currency: formData.currency,
                 amount: formData.amount,
                 exchange_rate: '1',
                 amount_in_iqd: parseFloat(formData.amount),
@@ -535,11 +556,19 @@ export default function Exchange({
 
                             {/* عرض الرصيد */}
                             <div className="space-y-4 mb-6">
-                                {/* الرصيد الحالي */}
+                                {/* الرصيد النقدي المركزي */}
                                 <div className="bg-green-50 rounded-xl p-6">
                                     <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد النقدي المركزي</h3>
                                     <p className="text-3xl font-bold text-green-700">
                                         {Math.floor(centralCashBalance).toLocaleString()} د.ع
+                                    </p>
+                                </div>
+
+                                {/* الرصيد المركزي للدولار */}
+                                <div className="bg-purple-50 rounded-xl p-6">
+                                    <h3 className="text-lg font-semibold text-purple-800 mb-2">الرصيد المركزي للدولار</h3>
+                                    <p className="text-3xl font-bold text-purple-700">
+                                        ${Math.floor(centralDollarBalance).toLocaleString()}
                                     </p>
                                 </div>
 
@@ -681,10 +710,25 @@ export default function Exchange({
                                 <input
                                     type="number"
                                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-right"
-                                    placeholder="أدخل المبلغ بالدينار العراقي"
+                                    placeholder={formData.currency === 'دولار أمريكي' ? 'أدخل المبلغ بالدولار' : 'أدخل المبلغ بالدينار العراقي'}
                                     value={formData.amount}
                                     onChange={(e) => handleInputChange('amount', e.target.value)}
                                 />
+                            </div>
+
+                            {/* العملة */}
+                            <div className="mb-6">
+                                <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                                    العملة: *
+                                </label>
+                                <select
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-right"
+                                    value={formData.currency}
+                                    onChange={(e) => handleInputChange('currency', e.target.value)}
+                                >
+                                    <option value="دينار عراقي">دينار عراقي</option>
+                                    <option value="دولار أمريكي">دولار أمريكي</option>
+                                </select>
                             </div>
 
                             {/* وصف السبب الدفع */}

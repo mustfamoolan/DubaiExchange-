@@ -14,6 +14,7 @@ use App\Http\Controllers\SellController;
 use App\Http\Controllers\BuyController;
 use App\Http\Controllers\ReceiveController;
 use App\Http\Controllers\ExchangeController;
+use App\Http\Controllers\TravelersController;
 use App\Http\Controllers\ThermalReceiptController;
 use App\Http\Controllers\Employee\EmployeeCustomerController;
 use Inertia\Inertia;
@@ -256,57 +257,56 @@ Route::prefix('employee')->group(function () {
     Route::post('/super-key/payment', [SuperKeyController::class, 'payment'])->name('super-key.payment');
     Route::get('/super-key/transactions', [SuperKeyController::class, 'getTransactions'])->name('super-key.transactions');
     Route::get('/super-key/detailed-report', [SuperKeyController::class, 'getDetailedReport'])->name('super-key.detailed-report');
-    Route::get('/travelers', [EmployeeController::class, 'travelers'])->name('employee.travelers');
+    Route::get('/travelers', [TravelersController::class, 'index'])->name('employee.travelers');
+    Route::post('/travelers', [TravelersController::class, 'store'])->name('travelers.store');
+    Route::get('/travelers/detailed-report', [TravelersController::class, 'getDetailedReport'])->name('travelers.detailed-report');
     Route::get('/balance', [EmployeeController::class, 'balance'])->name('employee.balance');
     Route::get('/transactions', [EmployeeController::class, 'transactions'])->name('employee.transactions');
     Route::get('/closing-balance', [EmployeeController::class, 'closingBalance'])->name('employee.closing-balance');
-});
 
-// مسارات بنك الرافدين
-Route::prefix('rafidain')->group(function () {
-    Route::post('/charge', [RafidainBankController::class, 'charge'])->name('rafidain.charge');
-    Route::post('/payment', [RafidainBankController::class, 'payment'])->name('rafidain.payment');
-    Route::get('/transactions', [RafidainBankController::class, 'getTransactions'])->name('rafidain.transactions');
-    Route::get('/detailed-report', [RafidainBankController::class, 'getDetailedReport'])->name('rafidain.detailed-report');
-});
+    // مسارات بنك الرافدين
+    Route::prefix('rafidain')->group(function () {
+        Route::post('/charge', [RafidainBankController::class, 'charge'])->name('rafidain.charge');
+        Route::post('/payment', [RafidainBankController::class, 'payment'])->name('rafidain.payment');
+        Route::get('/transactions', [RafidainBankController::class, 'getTransactions'])->name('rafidain.transactions');
+        Route::get('/detailed-report', [RafidainBankController::class, 'getDetailedReport'])->name('rafidain.detailed-report');
+    });
 
-// مسارات بنك الرشيد
-Route::prefix('rashid')->group(function () {
-    Route::post('/charge', [RashidBankController::class, 'charge'])->name('rashid.charge');
-    Route::post('/payment', [RashidBankController::class, 'payment'])->name('rashid.payment');
-    Route::get('/transactions', [RashidBankController::class, 'getTransactions'])->name('rashid.transactions');
-    Route::get('/detailed-report', [RashidBankController::class, 'getDetailedReport'])->name('rashid.detailed-report');
-});
+    // مسارات بنك الرشيد
+    Route::prefix('rashid')->group(function () {
+        Route::post('/charge', [RashidBankController::class, 'charge'])->name('rashid.charge');
+        Route::post('/payment', [RashidBankController::class, 'payment'])->name('rashid.payment');
+        Route::get('/transactions', [RashidBankController::class, 'getTransactions'])->name('rashid.transactions');
+        Route::get('/detailed-report', [RashidBankController::class, 'getDetailedReport'])->name('rashid.detailed-report');
+    });
 
-// مسارات زين كاش
-Route::prefix('zain-cash')->group(function () {
-    Route::post('/charge', [ZainCashController::class, 'charge'])->name('zain-cash.charge');
-    Route::post('/payment', [ZainCashController::class, 'payment'])->name('zain-cash.payment');
-    Route::get('/transactions', [ZainCashController::class, 'getTransactions'])->name('zain-cash.transactions');
-    Route::get('/detailed-report', [ZainCashController::class, 'getDetailedReport'])->name('zain-cash.detailed-report');
-});
+    // مسارات زين كاش
+    Route::prefix('zain-cash')->group(function () {
+        Route::post('/charge', [ZainCashController::class, 'charge'])->name('zain-cash.charge');
+        Route::post('/payment', [ZainCashController::class, 'payment'])->name('zain-cash.payment');
+        Route::get('/transactions', [ZainCashController::class, 'getTransactions'])->name('zain-cash.transactions');
+        Route::get('/detailed-report', [ZainCashController::class, 'getDetailedReport'])->name('zain-cash.detailed-report');
+    });
+    // مسارات سوبر كي
+    Route::prefix('super-key')->group(function () {
+        Route::post('/charge', [SuperKeyController::class, 'charge'])->name('super-key.charge');
+        Route::post('/payment', [SuperKeyController::class, 'payment'])->name('super-key.payment');
+        Route::get('/transactions', [SuperKeyController::class, 'getTransactions'])->name('super-key.transactions');
+        Route::get('/detailed-report', [SuperKeyController::class, 'getDetailedReport'])->name('super-key.detailed-report');
+    });
 
-// مسارات سوبر كي
-Route::prefix('super-key')->group(function () {
-    Route::post('/charge', [SuperKeyController::class, 'charge'])->name('super-key.charge');
-    Route::post('/payment', [SuperKeyController::class, 'payment'])->name('super-key.payment');
-    Route::get('/transactions', [SuperKeyController::class, 'getTransactions'])->name('super-key.transactions');
-    Route::get('/detailed-report', [SuperKeyController::class, 'getDetailedReport'])->name('super-key.detailed-report');
-});
+    // مسارات الفواتير الحرارية
+    Route::prefix('thermal-receipt')->group(function () {
+        Route::post('/create', [ThermalReceiptController::class, 'createReceipt'])->name('thermal-receipt.create');
+        Route::post('/create-sell', [ThermalReceiptController::class, 'createSellReceipt'])->name('thermal-receipt.create-sell');
+        Route::post('/create-buy', [ThermalReceiptController::class, 'createBuyReceipt'])->name('thermal-receipt.create-buy');
+        Route::post('/print/{receiptId}', [ThermalReceiptController::class, 'printReceipt'])->name('thermal-receipt.print');
+        Route::get('/get/{receiptId}', [ThermalReceiptController::class, 'getReceiptForPrint'])->name('thermal-receipt.get');
+        Route::get('/user-receipts', [ThermalReceiptController::class, 'getUserReceipts'])->name('thermal-receipt.user-receipts');
+        Route::get('/stats', [ThermalReceiptController::class, 'getReceiptStats'])->name('thermal-receipt.stats');
+    });
 
-// مسارات الفواتير الحرارية
-Route::prefix('thermal-receipt')->group(function () {
-    Route::post('/create', [ThermalReceiptController::class, 'createReceipt'])->name('thermal-receipt.create');
-    Route::post('/create-sell', [ThermalReceiptController::class, 'createSellReceipt'])->name('thermal-receipt.create-sell');
-    Route::post('/create-buy', [ThermalReceiptController::class, 'createBuyReceipt'])->name('thermal-receipt.create-buy');
-    Route::post('/print/{receiptId}', [ThermalReceiptController::class, 'printReceipt'])->name('thermal-receipt.print');
-    Route::get('/get/{receiptId}', [ThermalReceiptController::class, 'getReceiptForPrint'])->name('thermal-receipt.get');
-    Route::get('/user-receipts', [ThermalReceiptController::class, 'getUserReceipts'])->name('thermal-receipt.user-receipts');
-    Route::get('/stats', [ThermalReceiptController::class, 'getReceiptStats'])->name('thermal-receipt.stats');
-});
-
-// مسارات سندات القبض
-Route::prefix('employee')->group(function () {
+    // مسارات سندات القبض
     Route::get('/receive', [ReceiveController::class, 'index'])->name('employee.receive');
     Route::post('/receive', [ReceiveController::class, 'store'])->name('employee.receive.store');
     Route::get('/receive/detailed-report', [ReceiveController::class, 'getDetailedReport'])->name('employee.receive.detailed-report');
@@ -315,6 +315,20 @@ Route::prefix('employee')->group(function () {
     Route::get('/exchange', [ExchangeController::class, 'index'])->name('employee.exchange');
     Route::post('/exchange', [ExchangeController::class, 'store'])->name('employee.exchange.store');
     Route::get('/exchange/detailed-report', [ExchangeController::class, 'getDetailedReport'])->name('employee.exchange.detailed-report');
+
+    // مسارات معاملات البيع
+    Route::prefix('sell')->group(function () {
+        Route::post('/store', [SellController::class, 'store'])->name('sell.store');
+        Route::get('/transactions', [SellController::class, 'getTransactions'])->name('sell.transactions');
+        Route::get('/detailed-report', [SellController::class, 'getDetailedReport'])->name('sell.detailed-report');
+    });
+
+    // مسارات معاملات الشراء
+    Route::prefix('buy')->group(function () {
+        Route::post('/store', [BuyController::class, 'store'])->name('buy.store');
+        Route::get('/transactions', [BuyController::class, 'getTransactions'])->name('buy.transactions');
+        Route::get('/detailed-report', [BuyController::class, 'getDetailedReport'])->name('buy.detailed-report');
+    });
 });
 
 // مسارات API

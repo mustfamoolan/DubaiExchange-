@@ -61,7 +61,7 @@ class ZainCashController extends Controller
         CashBalanceService::initializeIfNotExists($sessionUser['id']);
 
         // الحصول على الرصيد النقدي المركزي
-        $currentCashBalance = CashBalanceService::getCurrentBalance();
+        $currentCashBalance = CashBalanceService::getCurrentBalance($sessionUser['id']);
 
         // Get user's opening balance for Zain Cash
         $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
@@ -158,10 +158,10 @@ class ZainCashController extends Controller
 
             // تحديث الرصيد النقدي المركزي
             $cashBalanceData = CashBalanceService::updateForBankingTransaction(
+                $sessionUser['id'], // معرف المستخدم
                 'charge', // نوع العملية
                 $amount, // المبلغ الأساسي
                 $commission, // العمولة
-                $sessionUser['id'],
                 'zain_cash',
                 $transaction->id,
                 $request->notes
@@ -238,7 +238,7 @@ class ZainCashController extends Controller
             $totalWithCommission = $amount + $commission;
 
             // التحقق من الرصيد النقدي المركزي بدلاً من رصيد المصرف
-            $currentCashBalance = CashBalanceService::getCurrentBalance();
+            $currentCashBalance = CashBalanceService::getCurrentBalance($sessionUser['id']);
             if ($currentCashBalance < $totalWithCommission) {
                 return response()->json([
                     'success' => false,
@@ -265,10 +265,10 @@ class ZainCashController extends Controller
 
             // تحديث الرصيد النقدي المركزي
             $cashBalanceData = CashBalanceService::updateForBankingTransaction(
+                $sessionUser['id'], // معرف المستخدم
                 'payment', // نوع العملية
                 $amount, // المبلغ الأساسي
                 $commission, // العمولة
-                $sessionUser['id'],
                 'zain_cash',
                 $transaction->id,
                 $request->notes

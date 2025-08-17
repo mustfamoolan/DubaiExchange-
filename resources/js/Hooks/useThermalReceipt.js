@@ -18,7 +18,7 @@ export const useThermalReceipt = () => {
         });
 
         try {
-            const response = await fetch('/thermal-receipt/create', {
+            const response = await fetch('/employee/thermal-receipt/create', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -68,7 +68,7 @@ export const useThermalReceipt = () => {
         }
 
         try {
-            const response = await fetch(`/thermal-receipt/print/${receiptData.receipt_id}`, {
+            const response = await fetch(`/employee/thermal-receipt/print/${receiptData.receipt_id}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -130,7 +130,7 @@ export const useThermalReceipt = () => {
         setIsCreatingReceipt(true);
 
         try {
-            const response = await fetch('/thermal-receipt/create-sell', {
+            const response = await fetch('/employee/thermal-receipt/create-sell', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -171,7 +171,7 @@ export const useThermalReceipt = () => {
         setIsCreatingReceipt(true);
 
         try {
-            const response = await fetch('/thermal-receipt/create-buy', {
+            const response = await fetch('/employee/thermal-receipt/create-buy', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

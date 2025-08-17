@@ -13,6 +13,9 @@ class ExchangeTransaction extends Model
         'user_id',
         'invoice_number',
         'amount',
+        'currency',
+        'exchange_rate',
+        'original_amount',
         'description',
         'paid_to',
         'previous_balance',
@@ -23,6 +26,8 @@ class ExchangeTransaction extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'exchange_rate' => 'decimal:2',
+        'original_amount' => 'decimal:2',
         'previous_balance' => 'decimal:2',
         'new_balance' => 'decimal:2',
         'created_at' => 'datetime',

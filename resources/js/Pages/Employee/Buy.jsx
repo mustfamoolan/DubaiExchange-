@@ -3,6 +3,7 @@ import EmployeeLayout from '../../Layouts/EmployeeLayout';
 import { router } from '@inertiajs/react';
 import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
 import { useCentralCashBalance } from '../../Hooks/useCentralCashBalance';
+import { useCentralDollarBalance } from '../../Hooks/useCentralDollarBalance';
 import ThermalReceipt from '../../Components/ThermalReceipt';
 
 export default function Buy({
@@ -10,6 +11,7 @@ export default function Buy({
     currentDollarBalance = 0,
     currentIQDBalance = 0,
     currentCashBalance = 0, // الرصيد النقدي الحالي
+    currentCentralDollarBalance = 0, // الرصيد المركزي للدولار الحالي
     openingDollarBalance = 0,
     openingIQDBalance = 0,
     openingCashBalance = 0, // الرصيد النقدي الافتتاحي
@@ -33,6 +35,13 @@ export default function Buy({
         updateBalanceAfterTransaction,
         fetchCurrentCashBalance
     } = useCentralCashBalance(currentCashBalance);
+
+    // استخدام hook رصيد الدولار المركزي
+    const {
+        centralDollarBalance,
+        updateBalanceAfterTransaction: updateDollarBalance,
+        fetchCurrentDollarBalance
+    } = useCentralDollarBalance(currentCentralDollarBalance);
 
     const [formData, setFormData] = useState({
         documentNumber: '',
@@ -173,6 +182,11 @@ export default function Buy({
                     updateBalanceAfterTransaction(result.new_cash_balance);
                 }
 
+                // تحديث رصيد الدولار المركزي
+                if (result.new_central_dollar_balance !== undefined) {
+                    updateDollarBalance(result.new_central_dollar_balance);
+                }
+
                 // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
                 if (result.updated_report) {
                     setTodayReport({
@@ -270,6 +284,11 @@ export default function Buy({
                 // تحديث الرصيد النقدي المركزي
                 if (result.new_cash_balance !== undefined) {
                     updateBalanceAfterTransaction(result.new_cash_balance);
+                }
+
+                // تحديث رصيد الدولار المركزي
+                if (result.new_central_dollar_balance !== undefined) {
+                    updateDollarBalance(result.new_central_dollar_balance);
                 }
 
                 // تحديث تقرير اليوم
@@ -381,9 +400,9 @@ export default function Buy({
                             <div className="space-y-4 mb-6">
                                 {/* الرصيد المتبقي بالدولار */}
                                 <div className="bg-cyan-50 rounded-xl p-6">
-                                    <h3 className="text-lg font-semibold text-cyan-800 mb-2">الرصيد المتبقي (دولار)</h3>
+                                    <h3 className="text-lg font-semibold text-cyan-800 mb-2">الرصيد المركزي (دولار)</h3>
                                     <p className="text-3xl font-bold text-cyan-700">
-                                        ${Math.floor(dollarBalance).toLocaleString()}
+                                        ${Math.floor(centralDollarBalance).toLocaleString()}
                                     </p>
                                 </div>
 

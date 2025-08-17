@@ -152,10 +152,10 @@ class RafidainBankController extends Controller
 
             // Update central cash balance using banking transaction logic
             $cashBalanceData = CashBalanceService::updateForBankingTransaction(
+                $sessionUser['id'], // user_id
                 'charge',           // transaction type
                 $amount,           // amount (bank balance decreases)
                 $commission,       // commission (added to cash)
-                $sessionUser['id'], // user_id
                 'rafidain_bank',   // source
                 $transaction->id,  // transaction_id
                 $notes             // notes
@@ -261,10 +261,10 @@ class RafidainBankController extends Controller
 
             // Update central cash balance using banking transaction logic
             $cashBalanceData = CashBalanceService::updateForBankingTransaction(
+                $sessionUser['id'], // user_id
                 'payment',          // transaction type
                 $amount,           // amount (bank balance increases)
                 $commission,       // commission (taken from cash)
-                $sessionUser['id'], // user_id
                 'rafidain_bank',   // source
                 $transaction->id,  // transaction_id
                 $notes             // notes

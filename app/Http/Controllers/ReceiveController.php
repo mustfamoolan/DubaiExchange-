@@ -8,6 +8,7 @@ use App\Models\ReceiveTransaction;
 use App\Models\User;
 use App\Models\OpeningBalance;
 use App\Services\CashBalanceService;
+use App\Services\DollarBalanceService;
 use Illuminate\Support\Facades\DB;
 
 class ReceiveController extends Controller
@@ -53,12 +54,27 @@ class ReceiveController extends Controller
         // تهيئة الرصيد النقدي المركزي من الرصيد الافتتاحي إذا لم يكن موجوداً
         CashBalanceService::initializeIfNotExists($sessionUser['id']);
 
+        // تهيئة الرصيد المركزي للدولار من الرصيد الافتتاحي إذا لم يكن موجوداً
+        DollarBalanceService::initializeIfNotExists($sessionUser['id']);
+
         // الحصول على الرصيد النقدي المركزي
-        $currentCashBalance = CashBalanceService::getCurrentBalance();
+        $currentCashBalance = CashBalanceService::getCurrentBalance($sessionUser['id']);
+
+        // الحصول على الرصيد المركزي للدولار
+        $currentCentralDollarBalance = DollarBalanceService::getCurrentBalance($sessionUser['id']);
 
         // الحصول على الرصيد الافتتاحي النقدي
         $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
         $currentNaqaBalance = $openingBalance ? $openingBalance->naqa : 0;
+        $openingDollarBalance = $openingBalance ? $openingBalance->usd_cash : 0;
+
+        // حساب إجمالي الدولار المقبوض
+        $totalDollarsReceived = ReceiveTransaction::where('user_id', $sessionUser['id'])
+            ->where('currency', 'دولار أمريكي')
+            ->sum('amount');
+
+        // حساب الرصيد الحالي للدولار
+        $currentDollarBalance = $openingDollarBalance + $totalDollarsReceived;
 
         // حساب إجمالي المستلم (من سندات القبض)
         $totalReceived = ReceiveTransaction::where('user_id', $sessionUser['id'])
@@ -96,8 +112,11 @@ class ReceiveController extends Controller
             'user' => $sessionUser,
             'currentBalance' => $currentBalance,
             'currentCashBalance' => $currentCashBalance, // الرصيد النقدي المركزي
+            'currentCentralDollarBalance' => $currentCentralDollarBalance, // الرصيد المركزي للدولار
+            'currentDollarBalance' => $currentDollarBalance, // رصيد الدولار الحالي
             'openingBalance' => $currentNaqaBalance,
             'openingCashBalance' => $currentNaqaBalance, // الرصيد النقدي الافتتاحي
+            'openingDollarBalance' => $openingDollarBalance, // رصيد الدولار الافتتاحي
             'transactions' => $transactions,
             'quickReport' => $quickReport
         ]);
@@ -117,7 +136,7 @@ class ReceiveController extends Controller
             'selectedCustomer' => 'nullable|array',
             'amount' => 'required|numeric|min:0.01',
             'currency' => 'required|string|max:100',
-            'exchange_rate' => 'required|numeric|min:0.01',
+            'exchange_rate' => 'nullable|numeric|min:0.01', // جعل سعر الصرف اختياري
             'description' => 'nullable|string|max:1000',
             'beneficiary' => 'required|string|max:255',
             'notes' => 'nullable|string|max:1000'
@@ -142,7 +161,15 @@ class ReceiveController extends Controller
             $currentBalance = $currentNaqaBalance + $totalReceived - $totalExchanged;
 
             // حساب المبلغ بالدينار العراقي
-            $amountInIqd = $request->amount * $request->exchange_rate;
+            // للدولار الأمريكي: المبلغ يبقى كما هو (لا يحول لدينار)
+            // للدينار العراقي: المبلغ يبقى كما هو
+            // للعملات الأخرى: يحول حسب سعر الصرف
+            if ($request->currency === 'دولار أمريكي') {
+                $amountInIqd = 0; // للدولار، لا نضيف للرصيد النقدي
+            } else {
+                $exchangeRate = $request->exchange_rate ?? 1;
+                $amountInIqd = $request->amount * $exchangeRate;
+            }
 
             $newBalance = $currentBalance + $amountInIqd;
 
@@ -153,7 +180,7 @@ class ReceiveController extends Controller
                 'received_from' => $request->receivedFrom,
                 'amount' => $request->amount,
                 'currency' => $request->currency,
-                'exchange_rate' => $request->exchange_rate,
+                'exchange_rate' => $request->exchange_rate ?? 1,
                 'amount_in_iqd' => $amountInIqd,
                 'description' => $request->description,
                 'beneficiary' => $request->beneficiary,
@@ -164,13 +191,19 @@ class ReceiveController extends Controller
                 'entered_by' => $sessionUser['name']
             ]);
 
-            // تحديث الرصيد النقدي المركزي
-            $cashBalanceData = CashBalanceService::updateForReceiveTransaction(
-                $amountInIqd, // المبلغ بالدينار العراقي
-                $sessionUser['id'],
-                $transaction->id,
-                $request->notes
-            );
+            // تحديث الرصيد النقدي المركزي (فقط للعملات غير الدولار)
+            $cashBalanceData = null;
+            if ($request->currency !== 'دولار أمريكي') {
+                $cashBalanceData = CashBalanceService::updateForReceiveTransaction(
+                    $sessionUser['id'], // معرف المستخدم
+                    $amountInIqd, // المبلغ بالدينار العراقي
+                    $transaction->id,
+                    $request->notes
+                );
+            } else {
+                // للدولار، نحتاج الحصول على الرصيد الحالي فقط
+                $cashBalanceData = ['new_balance' => CashBalanceService::getCurrentBalance($sessionUser['id'])];
+            }
 
             // إنشاء معاملة عميل إذا تم اختيار عميل
             if ($request->selectedCustomer && isset($request->selectedCustomer['id'])) {
@@ -179,35 +212,51 @@ class ReceiveController extends Controller
                     // تحديد نوع المعاملة والعملة
                     $transactionType = 'payment'; // دفع (العميل دفع للصرافة)
 
-                    // تحديد المبلغ حسب العملة
-                    $amountIqd = 0;
-                    $amountUsd = 0;
-
-                    if ($request->currency === 'دينار عراقي') {
-                        $amountIqd = $request->amount;
-                    } elseif ($request->currency === 'دولار أمريكي') {
-                        $amountUsd = $request->amount;
+                    // تحديد المبلغ والعملة حسب نوع المعاملة
+                    if ($request->currency === 'دولار أمريكي') {
+                        $amount = $request->amount; // المبلغ الأصلي بالدولار
+                        $currencyType = 'usd';
                     } else {
-                        // للعملات الأخرى، تحويل إلى دينار عراقي
-                        $amountIqd = $amountInIqd;
+                        // للعملات الأخرى، المبلغ بالدينار العراقي
+                        $amount = $amountInIqd;
+                        $currencyType = 'iqd';
                     }
 
                     \App\Models\CustomerTransaction::create([
                         'customer_id' => $customer->id,
                         'user_id' => $sessionUser['id'],
                         'transaction_code' => \App\Models\CustomerTransaction::generateTransactionCode(),
-                        'type' => $transactionType,
-                        'amount_iqd' => $amountIqd,
-                        'amount_usd' => $amountUsd,
+                        'transaction_type' => 'received', // تم الاستلام من العميل
+                        'currency_type' => $currencyType,
+                        'amount' => $amount,
+                        'exchange_rate' => $request->exchange_rate ?? 1,
                         'description' => 'سند قبض رقم: ' . $request->documentNumber . ' - ' . ($request->description ?: 'بدون وصف'),
-                        'reference_number' => $request->documentNumber,
-                        'currency' => $request->currency,
-                        'exchange_rate' => $request->exchange_rate,
-                        'notes' => $request->notes
+                        'notes' => $request->notes,
+                        'transaction_date' => now()
                     ]);
 
                     // إعادة حساب رصيد العميل
                     $customer->updateBalances();
+                }
+            }
+
+            // تحديث رصيد الدولار إذا كان القبض بالدولار
+            $newDollarBalance = null;
+            $dollarBalanceData = null;
+            if ($request->currency === 'دولار أمريكي') {
+                // تحديث الرصيد المركزي للدولار
+                $dollarBalanceData = DollarBalanceService::updateForReceiveTransaction(
+                    $sessionUser['id'],
+                    $request->amount,
+                    $transaction->id,
+                    $request->notes
+                );
+
+                $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
+                if ($openingBalance) {
+                    $openingBalance->usd_cash += $request->amount;
+                    $openingBalance->save();
+                    $newDollarBalance = $openingBalance->usd_cash;
                 }
             }
 
@@ -234,6 +283,8 @@ class ReceiveController extends Controller
                 'transaction' => $transaction,
                 'new_balance' => $newBalance,
                 'new_cash_balance' => $cashBalanceData['new_balance'], // الرصيد النقدي المركزي المحدث
+                'new_central_dollar_balance' => $dollarBalanceData ? $dollarBalanceData['new_balance'] : DollarBalanceService::getCurrentBalance($sessionUser['id']), // الرصيد المركزي للدولار
+                'new_dollar_balance' => $newDollarBalance, // رصيد الدولار المحدث
                 'updated_report' => [
                     'received_today' => $updatedTodayReceived,
                     'operations' => $updatedOperations,

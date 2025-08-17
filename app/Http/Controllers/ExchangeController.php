@@ -8,6 +8,7 @@ use App\Models\ExchangeTransaction;
 use App\Models\User;
 use App\Models\OpeningBalance;
 use App\Services\CashBalanceService;
+use App\Services\DollarBalanceService;
 use Illuminate\Support\Facades\DB;
 
 class ExchangeController extends Controller
@@ -50,9 +51,17 @@ class ExchangeController extends Controller
             return $sessionUser;
         }
 
+        // تهيئة الرصيد النقدي المركزي من الرصيد الافتتاحي إذا لم يكن موجوداً
+        CashBalanceService::initializeIfNotExists($sessionUser['id']);
+
+        // تهيئة الرصيد المركزي للدولار من الرصيد الافتتاحي إذا لم يكن موجوداً
+        DollarBalanceService::initializeIfNotExists($sessionUser['id']);
+
         // الحصول على الرصيد النقدي المركزي
-        $cashBalanceService = new CashBalanceService();
-        $currentCashBalance = $cashBalanceService->getCurrentBalance();
+        $currentCashBalance = CashBalanceService::getCurrentBalance($sessionUser['id']);
+
+        // الحصول على الرصيد المركزي للدولار
+        $currentCentralDollarBalance = DollarBalanceService::getCurrentBalance($sessionUser['id']);
 
         // الحصول على الرصيد الافتتاحي النقدي
         $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
@@ -95,6 +104,7 @@ class ExchangeController extends Controller
             'transactions' => $transactions,
             'quickReport' => $quickReport,
             'currentCashBalance' => $currentCashBalance,
+            'currentCentralDollarBalance' => $currentCentralDollarBalance,
             'openingCashBalance' => $openingCashBalance
         ]);
     }
@@ -110,6 +120,7 @@ class ExchangeController extends Controller
         $request->validate([
             'invoiceNumber' => 'required|string',
             'amount' => 'required|numeric|min:0.01',
+            'currency' => 'required|string|in:دينار عراقي,دولار أمريكي',
             'description' => 'required|string|max:1000',
             'selectedCustomer' => 'nullable|array'
         ]);
@@ -117,16 +128,32 @@ class ExchangeController extends Controller
         DB::beginTransaction();
 
         try {
-            // استخدام CashBalanceService لتحديث الرصيد المركزي
-            $cashBalanceService = new CashBalanceService();
-            $currentCashBalance = $cashBalanceService->getCurrentBalance();
+            // المبلغ كما هو (بدون تحويل)
+            $amountInIqd = $request->amount;
 
-            // التحقق من كفاية الرصيد المركزي
-            if ($currentCashBalance < $request->amount) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'الرصيد النقدي المركزي غير كافي لإجراء هذه العملية'
-                ], 400);
+            // الحصول على الرصيد النقدي المركزي الحالي
+            $currentCashBalance = CashBalanceService::getCurrentBalance($sessionUser['id']);
+
+            // الحصول على الرصيد المركزي للدولار الحالي
+            $currentCentralDollarBalance = DollarBalanceService::getCurrentBalance($sessionUser['id']);
+
+            // التحقق من كفاية الرصيد المناسب
+            if ($request->currency === 'دولار أمريكي') {
+                // للدولار، نتحقق من الرصيد المركزي للدولار
+                if ($currentCentralDollarBalance < $request->amount) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'الرصيد المركزي للدولار غير كافي لإجراء هذه العملية'
+                    ], 400);
+                }
+            } else {
+                // للدينار، نتحقق من الرصيد النقدي المركزي
+                if ($currentCashBalance < $request->amount) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'الرصيد النقدي المركزي غير كافي لإجراء هذه العملية'
+                    ], 400);
+                }
             }
 
             // حساب الرصيد الحالي للموظف (للسجلات القديمة)
@@ -148,7 +175,10 @@ class ExchangeController extends Controller
             $transaction = ExchangeTransaction::create([
                 'user_id' => $sessionUser['id'],
                 'invoice_number' => $request->invoiceNumber,
-                'amount' => $request->amount,
+                'amount' => $request->amount, // المبلغ
+                'currency' => $request->currency,
+                'exchange_rate' => 1,
+                'original_amount' => $request->amount, // المبلغ الأصلي بالعملة المختارة
                 'description' => $request->description,
                 'paid_to' => $request->paidTo ?? null,
                 'previous_balance' => $previousBalance,
@@ -162,24 +192,28 @@ class ExchangeController extends Controller
                 $customer = \App\Models\Customer::find($request->selectedCustomer['id']);
                 if ($customer) {
                     // تحديد نوع المعاملة (الصرافة دفعت للعميل)
-                    $transactionType = 'delivery'; // تسليم (الصرافة دفعت للعميل)
+                    $transactionType = 'delivered'; // تسليم (الصرافة دفعت للعميل)
 
-                    // المبلغ بالدينار العراقي (سند الصرف دائماً بالدينار)
-                    $amountIqd = $request->amount;
-                    $amountUsd = 0;
+                    // تحديد المبلغ والعملة
+                    if ($request->currency === 'دولار أمريكي') {
+                        $amount = $request->amount; // المبلغ الأصلي بالدولار
+                        $currencyType = 'usd';
+                    } else {
+                        $amount = $request->amount; // المبلغ بالدينار العراقي
+                        $currencyType = 'iqd';
+                    }
 
                     \App\Models\CustomerTransaction::create([
                         'customer_id' => $customer->id,
                         'user_id' => $sessionUser['id'],
                         'transaction_code' => \App\Models\CustomerTransaction::generateTransactionCode(),
-                        'type' => $transactionType,
-                        'amount_iqd' => $amountIqd,
-                        'amount_usd' => $amountUsd,
-                        'description' => 'سند صرف رقم: ' . $request->invoiceNumber . ' - ' . ($request->description ?: 'بدون وصف'),
-                        'reference_number' => $request->invoiceNumber,
-                        'currency' => 'دينار عراقي',
+                        'transaction_type' => $transactionType,
+                        'currency_type' => $currencyType,
+                        'amount' => $amount,
                         'exchange_rate' => 1,
-                        'notes' => $request->notes
+                        'description' => 'سند صرف رقم: ' . $request->invoiceNumber . ' - ' . ($request->description ?: 'بدون وصف'),
+                        'notes' => $request->notes,
+                        'transaction_date' => now()
                     ]);
 
                     // إعادة حساب رصيد العميل
@@ -187,8 +221,28 @@ class ExchangeController extends Controller
                 }
             }
 
-            // تحديث الرصيد النقدي المركزي
-            $newCashBalance = $cashBalanceService->updateForExchangeTransaction($request->amount);
+            // تحديث الرصيد المناسب
+            if ($request->currency === 'دولار أمريكي') {
+                // تحديث الرصيد المركزي للدولار
+                $dollarBalanceData = DollarBalanceService::updateForExchangeTransaction(
+                    $sessionUser['id'],
+                    $request->amount, // المبلغ بالدولار
+                    $transaction->id,
+                    $request->notes
+                );
+                $newCentralDollarBalance = $dollarBalanceData['new_balance'];
+                $newCashBalance = $currentCashBalance; // الرصيد النقدي لا يتغير
+            } else {
+                // تحديث الرصيد النقدي المركزي
+                $cashBalanceData = CashBalanceService::updateForExchangeTransaction(
+                    $sessionUser['id'],
+                    $request->amount, // المبلغ بالدينار العراقي
+                    $transaction->id,
+                    $request->notes
+                );
+                $newCashBalance = $cashBalanceData['new_balance'];
+                $newCentralDollarBalance = $currentCentralDollarBalance; // الرصيد للدولار لا يتغير
+            }
 
             DB::commit();
 
@@ -210,6 +264,7 @@ class ExchangeController extends Controller
                 'transaction' => $transaction,
                 'new_balance' => $newBalance,
                 'new_cash_balance' => $newCashBalance,
+                'new_central_dollar_balance' => $newCentralDollarBalance,
                 'updated_report' => [
                     'exchanged_today' => $updatedExchangedToday,
                     'operations' => $updatedOperations,

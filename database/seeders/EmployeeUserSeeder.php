@@ -22,6 +22,7 @@ class EmployeeUserSeeder extends Seeder
                 'user_type' => 'employee',
                 'is_active' => true,
             ]
+
         );
     }
 }

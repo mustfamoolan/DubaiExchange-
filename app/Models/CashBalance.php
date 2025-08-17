@@ -13,6 +13,7 @@ class CashBalance extends Model
     protected $table = 'cash_balance';
 
     protected $fillable = [
+        'user_id',
         'current_cash_balance',
         'opening_cash_balance',
         'last_updated_at',
@@ -32,6 +33,14 @@ class CashBalance extends Model
     ];
 
     /**
+     * العلاقة مع المستخدم الذي يملك هذا الرصيد
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    /**
      * العلاقة مع المستخدم الذي قام بآخر تحديث
      */
     public function lastUpdatedBy(): BelongsTo
@@ -40,31 +49,32 @@ class CashBalance extends Model
     }
 
     /**
-     * الحصول على الرصيد النقدي الحالي
+     * الحصول على الرصيد النقدي الحالي لمستخدم محدد
      */
-    public static function getCurrentBalance(): float
+    public static function getCurrentBalance(int $userId): float
     {
-        $record = self::first();
+        $record = self::where('user_id', $userId)->first();
         return $record ? $record->current_cash_balance : 0;
     }
 
     /**
-     * تحديث الرصيد النقدي
+     * تحديث الرصيد النقدي لمستخدم محدد
      */
     public static function updateBalance(
-        float $newBalance,
         int $userId,
+        float $newBalance,
         string $transactionType,
         string $transactionSource,
         int $transactionId,
         float $transactionAmount,
         string $notes = null
     ): void {
-        $record = self::first();
+        $record = self::where('user_id', $userId)->first();
 
         if (!$record) {
             // إنشاء سجل جديد إذا لم يكن موجوداً
             self::create([
+                'user_id' => $userId,
                 'current_cash_balance' => $newBalance,
                 'opening_cash_balance' => 0,
                 'last_updated_at' => now(),
@@ -91,14 +101,15 @@ class CashBalance extends Model
     }
 
     /**
-     * تعيين الرصيد الافتتاحي
+     * تعيين الرصيد الافتتاحي لمستخدم محدد
      */
-    public static function setOpeningBalance(float $openingBalance): void
+    public static function setOpeningBalance(int $userId, float $openingBalance): void
     {
-        $record = self::first();
+        $record = self::where('user_id', $userId)->first();
 
         if (!$record) {
             self::create([
+                'user_id' => $userId,
                 'current_cash_balance' => $openingBalance,
                 'opening_cash_balance' => $openingBalance
             ]);
@@ -111,11 +122,11 @@ class CashBalance extends Model
     }
 
     /**
-     * الحصول على إحصائيات سريعة
+     * الحصول على إحصائيات سريعة لمستخدم محدد
      */
-    public static function getQuickStats(): array
+    public static function getQuickStats(int $userId): array
     {
-        $record = self::first();
+        $record = self::where('user_id', $userId)->first();
 
         if (!$record) {
             return [

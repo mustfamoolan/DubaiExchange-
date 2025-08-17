@@ -104,7 +104,7 @@ export default function RashidBank({
     // جلب التقرير المفصل
     const fetchDetailedReport = async () => {
         try {
-            const response = await fetch('/rashid/detailed-report', {
+            const response = await fetch('/employee/rashid/detailed-report', {
                 method: 'GET',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
@@ -140,7 +140,7 @@ export default function RashidBank({
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(`/rashid/${action}`, {
+            const response = await fetch(`/employee/rashid/${action}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

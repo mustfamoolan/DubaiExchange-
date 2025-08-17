@@ -115,7 +115,7 @@ export default function ZainCash({
     // جلب التقرير المفصل
     const fetchDetailedReport = async () => {
         try {
-            const response = await fetch('/zain-cash/detailed-report', {
+            const response = await fetch('/employee/zain-cash/detailed-report', {
                 method: 'GET',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
@@ -151,7 +151,7 @@ export default function ZainCash({
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(`/zain-cash/${action}`, {
+            const response = await fetch(`/employee/zain-cash/${action}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

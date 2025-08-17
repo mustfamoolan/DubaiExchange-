@@ -8,6 +8,7 @@ use App\Models\SellTransaction;
 use App\Models\User;
 use App\Models\OpeningBalance;
 use App\Services\CashBalanceService;
+use App\Services\DollarBalanceService;
 use Illuminate\Support\Facades\DB;
 
 class SellController extends Controller
@@ -53,8 +54,14 @@ class SellController extends Controller
         // تهيئة الرصيد النقدي المركزي من الرصيد الافتتاحي إذا لم يكن موجوداً
         CashBalanceService::initializeIfNotExists($sessionUser['id']);
 
+        // تهيئة الرصيد المركزي للدولار من الرصيد الافتتاحي إذا لم يكن موجوداً
+        DollarBalanceService::initializeIfNotExists($sessionUser['id']);
+
         // الحصول على الرصيد النقدي المركزي
-        $currentCashBalance = CashBalanceService::getCurrentBalance();
+        $currentCashBalance = CashBalanceService::getCurrentBalance($sessionUser['id']);
+
+        // الحصول على الرصيد المركزي للدولار
+        $currentCentralDollarBalance = DollarBalanceService::getCurrentBalance($sessionUser['id']);
 
         // Get user's opening balance for Dollar sales
         $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
@@ -98,6 +105,7 @@ class SellController extends Controller
             'currentDollarBalance' => $currentDollarBalance, // الرصيد الحالي بالدولار
             'currentBalance' => $currentBalance, // الرصيد النقدي الحالي الموحد (للعرض فقط)
             'currentCashBalance' => $currentCashBalance, // الرصيد النقدي المركزي
+            'currentCentralDollarBalance' => $currentCentralDollarBalance, // الرصيد المركزي للدولار
             'openingDollarBalance' => $dollarBalance, // الرصيد الافتتاحي بالدولار
             'openingBalance' => $openingCashBalance, // الرصيد الافتتاحي النقدي (للعرض فقط)
             'openingCashBalance' => $openingCashBalance, // الرصيد الافتتاحي النقدي
@@ -178,8 +186,16 @@ class SellController extends Controller
 
             // تحديث الرصيد النقدي المركزي
             $cashBalanceData = CashBalanceService::updateForSellTransaction(
+                $sessionUser['id'], // معرف المستخدم
                 $totalAmount, // المبلغ الكلي (بالدينار العراقي + العمولة)
-                $sessionUser['id'],
+                $transaction->id,
+                $request->notes
+            );
+
+            // تحديث الرصيد المركزي للدولار
+            $dollarBalanceData = DollarBalanceService::updateForSellTransaction(
+                $sessionUser['id'], // معرف المستخدم
+                $dollarAmount, // مبلغ الدولار المباع
                 $transaction->id,
                 $request->notes
             );
@@ -206,6 +222,7 @@ class SellController extends Controller
                 'transaction' => $transaction,
                 'new_dollar_balance' => $newDollarBalance,
                 'new_cash_balance' => $cashBalanceData['new_balance'], // الرصيد النقدي المركزي المحدث
+                'new_central_dollar_balance' => $dollarBalanceData['new_balance'], // الرصيد المركزي للدولار المحدث
                 'updated_report' => [
                     'charges' => 0,
                     'payments' => $updatedTotalIQDReceived,

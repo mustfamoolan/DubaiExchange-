@@ -3,6 +3,7 @@ import EmployeeLayout from '../../Layouts/EmployeeLayout';
 import { router } from '@inertiajs/react';
 import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
 import { useCentralCashBalance } from '../../Hooks/useCentralCashBalance';
+import { useCentralDollarBalance } from '../../Hooks/useCentralDollarBalance';
 import ThermalReceipt from '../../Components/ThermalReceipt';
 
 export default function Sell({
@@ -10,6 +11,7 @@ export default function Sell({
     currentDollarBalance = 0,
     currentBalance = 0,
     currentCashBalance = 0, // الرصيد النقدي المركزي
+    currentCentralDollarBalance = 0, // الرصيد المركزي للدولار
     openingDollarBalance = 0,
     openingBalance = 0,
     openingCashBalance = 0, // الرصيد النقدي الافتتاحي
@@ -32,6 +34,13 @@ export default function Sell({
         updateBalanceAfterTransaction,
         fetchCurrentCashBalance
     } = useCentralCashBalance(currentCashBalance);
+
+    // استخدام hook الرصيد المركزي للدولار
+    const {
+        centralDollarBalance,
+        updateBalanceAfterTransaction: updateDollarBalance,
+        fetchCurrentDollarBalance
+    } = useCentralDollarBalance(currentCentralDollarBalance);
 
     const [formData, setFormData] = useState({
         documentNumber: '',
@@ -134,11 +143,6 @@ export default function Sell({
             return;
         }
 
-        if (parseFloat(formData.dollarAmount) > dollarBalance) {
-            alert(`الرصيد غير كافي. الرصيد المتاح: $${dollarBalance.toLocaleString()}`);
-            return;
-        }
-
         setIsSubmitting(true);
 
         try {
@@ -167,6 +171,11 @@ export default function Sell({
                 // تحديث الرصيد النقدي المركزي
                 if (result.new_cash_balance !== undefined) {
                     updateBalanceAfterTransaction(result.new_cash_balance);
+                }
+
+                // تحديث الرصيد المركزي للدولار
+                if (result.new_central_dollar_balance !== undefined) {
+                    updateDollarBalance(result.new_central_dollar_balance);
                 }
 
                 // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
@@ -229,11 +238,6 @@ export default function Sell({
             return;
         }
 
-        if (parseFloat(formData.dollarAmount) > dollarBalance) {
-            alert(`الرصيد غير كافي. الرصيد المتاح: $${dollarBalance.toLocaleString()}`);
-            return;
-        }
-
         setIsSubmitting(true);
 
         try {
@@ -263,6 +267,11 @@ export default function Sell({
                 // تحديث الرصيد النقدي المركزي
                 if (result.new_cash_balance !== undefined) {
                     updateBalanceAfterTransaction(result.new_cash_balance);
+                }
+
+                // تحديث الرصيد المركزي للدولار
+                if (result.new_central_dollar_balance !== undefined) {
+                    updateDollarBalance(result.new_central_dollar_balance);
                 }
 
                 // تحديث تقرير اليوم
@@ -372,11 +381,11 @@ export default function Sell({
 
                             {/* عرض الرصيد */}
                             <div className="space-y-4 mb-6">
-                                {/* الرصيد المتبقي بالدولار */}
-                                <div className="bg-blue-50 rounded-xl p-6">
-                                    <h3 className="text-lg font-semibold text-blue-800 mb-2">الرصيد المتبقي (دولار)</h3>
-                                    <p className="text-3xl font-bold text-blue-700">
-                                        ${Math.floor(dollarBalance).toLocaleString()}
+                                {/* الرصيد المركزي للدولار */}
+                                <div className="bg-purple-50 rounded-xl p-6">
+                                    <h3 className="text-lg font-semibold text-purple-800 mb-2">الرصيد المركزي للدولار</h3>
+                                    <p className="text-3xl font-bold text-purple-700">
+                                        ${Math.floor(centralDollarBalance).toLocaleString()}
                                     </p>
                                 </div>
 
@@ -504,14 +513,8 @@ export default function Sell({
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-right"
                                         placeholder="المبلغ بالدولار"
                                         value={formData.dollarAmount}
-                                        max={dollarBalance}
                                         onChange={(e) => handleInputChange('dollarAmount', e.target.value)}
                                     />
-                                    {formData.dollarAmount && parseFloat(formData.dollarAmount) > dollarBalance && (
-                                        <p className="text-sm text-red-600 mt-1">
-                                            الرصيد غير كافي. المتاح: ${dollarBalance.toLocaleString()}
-                                        </p>
-                                    )}
                                 </div>
 
                                 <div>

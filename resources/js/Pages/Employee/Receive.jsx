@@ -3,20 +3,26 @@ import EmployeeLayout from '../../Layouts/EmployeeLayout';
 import { router } from '@inertiajs/react';
 import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
 import { useCentralCashBalance } from '../../Hooks/useCentralCashBalance';
+import { useCentralDollarBalance } from '../../Hooks/useCentralDollarBalance';
 import ThermalReceipt from '../../Components/ThermalReceipt';
 import { useReceiveExchangeReceipt } from '../../Hooks/useReceiveExchangeReceipt';
 import ReceiveExchangeThermalReceipt from '../../Components/ReceiveExchangeThermalReceipt';
+import { generateUniqueReference } from '../../Utils/generateUniqueReference';
 
 export default function Receive({
     user,
     currentBalance = 0,
     currentCashBalance = 0, // الرصيد النقدي المركزي
+    currentCentralDollarBalance = 0, // الرصيد المركزي للدولار
+    currentDollarBalance = 0, // رصيد الدولار الحالي
     openingBalance = 0,
     openingCashBalance = 0, // الرصيد النقدي الافتتاحي
+    openingDollarBalance = 0, // رصيد الدولار الافتتاحي
     transactions = [],
     quickReport = { received_today: 0, operations: 0, total_received: 0, total_exchanged: 0 }
 }) {
     const [balance, setBalance] = useState(currentBalance);
+    const [dollarBalance, setDollarBalance] = useState(currentDollarBalance || 0);
     const [showDetailedReport, setShowDetailedReport] = useState(false);
     const [todayReport, setTodayReport] = useState({
         received_today: quickReport.received_today,
@@ -31,6 +37,13 @@ export default function Receive({
         updateBalanceAfterTransaction,
         fetchCurrentCashBalance
     } = useCentralCashBalance(currentCashBalance);
+
+    // استخدام hook الرصيد المركزي للدولار
+    const {
+        centralDollarBalance,
+        updateBalanceAfterTransaction: updateDollarBalance,
+        fetchCurrentDollarBalance
+    } = useCentralDollarBalance(currentCentralDollarBalance);
 
     // استخدام hook الفواتير الحرارية العامة
     const {
@@ -111,12 +124,8 @@ export default function Receive({
     // توليد رقم مرجع جديد
     useEffect(() => {
         const generateRefNumber = () => {
-            const now = new Date();
-            const dateStr = now.getFullYear().toString() +
-                           (now.getMonth() + 1).toString().padStart(2, '0') +
-                           now.getDate().toString().padStart(2, '0');
-            const timeStr = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-            setReferenceNumber(`REC${dateStr}${timeStr}`);
+            const uniqueRef = generateUniqueReference('REC');
+            setReferenceNumber(uniqueRef);
         };
 
         generateRefNumber();
@@ -129,28 +138,7 @@ export default function Receive({
 
     const currencies = [
         'دينار عراقي',
-        'دولار أمريكي',
-        'يورو',
-        'جنيه استرليني',
-        'ليرة تركية',
-        'دولار أسترالي',
-        'دولار كندي',
-        'يوان صيني',
-        'ين ياباني',
-        'كرونا سويدية',
-        'كرونا نرويجية',
-        'كرونا دنماركية',
-        'مانات أذربيجان',
-        'درهم إماراتي',
-        'دينار أردني',
-        'ريال سعودي',
-        'ريال قطري',
-        'ليرة لبنانية',
-        'جنيه مصري',
-        'دينار كويتي',
-        'دينار بحريني',
-        'ليرة سورية',
-        'ريال إيراني'
+        'دولار أمريكي'
     ];
 
     // تحديث قيم النموذج
@@ -162,6 +150,10 @@ export default function Receive({
             if (field === 'currency' && value === 'دينار عراقي') {
                 newData.exchange_rate = '1';
             }
+            // إذا تم تغيير العملة إلى دولار أمريكي، جعل سعر الصرف افتراضي
+            if (field === 'currency' && value === 'دولار أمريكي') {
+                newData.exchange_rate = '1'; // سعر الصرف 1 للدولار (سيأخذ المبلغ الأصلي)
+            }
 
             return newData;
         });
@@ -171,7 +163,7 @@ export default function Receive({
     const fetchCustomers = async () => {
         setIsLoadingCustomers(true);
         try {
-            const response = await fetch('/api/customers/search', {
+            const response = await fetch('/api/employee/customers/search', {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
@@ -233,7 +225,7 @@ export default function Receive({
                 opening_balance_usd: newCustomerData.opening_balance_usd || '0'
             });
 
-            const response = await fetch('/api/customers', {
+            const response = await fetch('/api/employee/customers', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -346,8 +338,8 @@ export default function Receive({
 
     // إرسال المعاملة (بدون رسائل تأكيد للاستخدام مع الطباعة)
     const handleSubmitSilent = async () => {
-        // التحقق من الحقول المطلوبة (سعر الصرف مطلوب فقط إذا لم تكن العملة دينار عراقي)
-        const isExchangeRateRequired = formData.currency !== 'دينار عراقي';
+        // التحقق من الحقول المطلوبة (سعر الصرف مطلوب فقط إذا لم تكن العملة دينار عراقي أو دولار أمريكي)
+        const isExchangeRateRequired = formData.currency !== 'دينار عراقي' && formData.currency !== 'دولار أمريكي';
 
         if (!formData.receivedFrom || !formData.amount || !formData.currency ||
             (isExchangeRateRequired && !formData.exchange_rate)) {
@@ -390,6 +382,16 @@ export default function Receive({
             // تحديث الرصيد النقدي المركزي
             if (result.new_cash_balance !== undefined) {
                 updateBalanceAfterTransaction(result.new_cash_balance);
+            }
+
+            // تحديث الرصيد المركزي للدولار
+            if (result.new_central_dollar_balance !== undefined) {
+                updateDollarBalance(result.new_central_dollar_balance);
+            }
+
+            // تحديث رصيد الدولار إذا كان القبض بالدولار
+            if (result.new_dollar_balance !== undefined && result.new_dollar_balance !== null) {
+                setDollarBalance(result.new_dollar_balance);
             }
 
             // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
@@ -441,8 +443,8 @@ export default function Receive({
 
     // إرسال المعاملة
     const handleSubmit = async () => {
-        // التحقق من الحقول المطلوبة (سعر الصرف مطلوب فقط إذا لم تكن العملة دينار عراقي)
-        const isExchangeRateRequired = formData.currency !== 'دينار عراقي';
+        // التحقق من الحقول المطلوبة (سعر الصرف مطلوب فقط إذا لم تكن العملة دينار عراقي أو دولار أمريكي)
+        const isExchangeRateRequired = formData.currency !== 'دينار عراقي' && formData.currency !== 'دولار أمريكي';
 
         if (!formData.receivedFrom || !formData.amount || !formData.currency ||
             (isExchangeRateRequired && !formData.exchange_rate)) {
@@ -493,6 +495,16 @@ export default function Receive({
                     updateBalanceAfterTransaction(result.new_cash_balance);
                 }
 
+                // تحديث الرصيد المركزي للدولار
+                if (result.new_central_dollar_balance !== undefined) {
+                    updateDollarBalance(result.new_central_dollar_balance);
+                }
+
+                // تحديث رصيد الدولار إذا كان القبض بالدولار
+                if (result.new_dollar_balance !== undefined && result.new_dollar_balance !== null) {
+                    setDollarBalance(result.new_dollar_balance);
+                }
+
                 // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
                 if (result.updated_report) {
                     setTodayReport({
@@ -516,14 +528,11 @@ export default function Receive({
                 }));
 
                 // توليد رقم مرجع جديد
-                const now = new Date();
-                const dateStr = now.getFullYear().toString() +
-                               (now.getMonth() + 1).toString().padStart(2, '0') +
-                               now.getDate().toString().padStart(2, '0');
-                const timeStr = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-                setReferenceNumber(`REC${dateStr}${timeStr}`);
+                const uniqueRef = generateUniqueReference('REC');
+                setReferenceNumber(uniqueRef);
 
                 // تحديث التوقيت الحالي
+                const now = new Date();
                 setCurrentDateTime(now.toLocaleString('en-US', {
                     year: 'numeric',
                     month: '2-digit',
@@ -551,8 +560,8 @@ export default function Receive({
 
     // حفظ وطباعة فاتورة سند القبض المخصصة
     const handleSaveAndPrint = async () => {
-        // التحقق من الحقول المطلوبة (سعر الصرف مطلوب فقط إذا لم تكن العملة دينار عراقي)
-        const isExchangeRateRequired = formData.currency !== 'دينار عراقي';
+        // التحقق من الحقول المطلوبة (سعر الصرف مطلوب فقط إذا لم تكن العملة دينار عراقي أو دولار أمريكي)
+        const isExchangeRateRequired = formData.currency !== 'دينار عراقي' && formData.currency !== 'دولار أمريكي';
 
         if (!formData.receivedFrom || !formData.amount || !formData.currency ||
             (isExchangeRateRequired && !formData.exchange_rate)) {
@@ -606,7 +615,7 @@ export default function Receive({
 
     // حساب ما إذا كان النموذج صالحاً للإرسال
     const isFormValid = () => {
-        const isExchangeRateRequired = formData.currency !== 'دينار عراقي';
+        const isExchangeRateRequired = formData.currency !== 'دينار عراقي' && formData.currency !== 'دولار أمريكي';
         return formData.receivedFrom &&
                formData.amount &&
                formData.currency &&
@@ -646,6 +655,14 @@ export default function Receive({
                                     <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد النقدي المركزي</h3>
                                     <p className="text-3xl font-bold text-green-700">
                                         {Math.floor(centralCashBalance).toLocaleString()} د.ع
+                                    </p>
+                                </div>
+
+                                {/* الرصيد المركزي للدولار */}
+                                <div className="bg-purple-50 rounded-xl p-6">
+                                    <h3 className="text-lg font-semibold text-purple-800 mb-2">الرصيد المركزي للدولار</h3>
+                                    <p className="text-3xl font-bold text-purple-700">
+                                        ${Math.floor(centralDollarBalance).toLocaleString()}
                                     </p>
                                 </div>
 
@@ -887,8 +904,8 @@ export default function Receive({
                                     </select>
                                 </div>
 
-                                {/* حقل سعر الصرف - يُخفى عندما تكون العملة دينار عراقي */}
-                                {formData.currency !== 'دينار عراقي' && (
+                                {/* حقل سعر الصرف - يُخفى عندما تكون العملة دينار عراقي أو دولار أمريكي */}
+                                {formData.currency !== 'دينار عراقي' && formData.currency !== 'دولار أمريكي' && (
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
                                             سعر الصرف: *
@@ -905,8 +922,8 @@ export default function Receive({
                                     </div>
                                 )}
 
-                                {/* عرض المبلغ بالدينار العراقي */}
-                                {formData.amount && formData.exchange_rate && (
+                                {/* عرض المبلغ بالدينار العراقي للعملات الأخرى فقط */}
+                                {formData.amount && formData.exchange_rate && formData.currency !== 'دينار عراقي' && formData.currency !== 'دولار أمريكي' && (
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
                                             المبلغ بالدينار العراقي:

@@ -18,18 +18,9 @@ export function useCentralCashBalance(initialCashBalance = 0) {
     const fetchCurrentCashBalance = async () => {
         try {
             setIsUpdating(true);
-            const response = await fetch('/api/cash-balance/current', {
-                headers: {
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-                }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setCentralCashBalance(data.current_balance || 0);
-                return data.current_balance || 0;
-            }
+            // استخدام current page reload بدلاً من API call
+            // لأن Laravel controllers ترسل البيانات مباشرة للصفحة
+            window.location.reload();
         } catch (error) {
             console.error('خطأ في جلب الرصيد النقدي المركزي:', error);
         } finally {
@@ -93,18 +84,9 @@ export function useCashBalanceStats() {
     const fetchStats = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch('/api/cash-balance/stats', {
-                headers: {
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-                }
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setStats(data);
-                return data;
-            }
+            // استخدام current page reload بدلاً من API call
+            // لأن Laravel controllers ترسل البيانات مباشرة للصفحة
+            console.log('Stats will be fetched on page reload');
         } catch (error) {
             console.error('خطأ في جلب إحصائيات الرصيد النقدي:', error);
         } finally {

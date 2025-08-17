@@ -115,7 +115,7 @@ export default function RafidainBank({
     // جلب التقرير المفصل
     const fetchDetailedReport = async () => {
         try {
-            const response = await fetch('/rafidain/detailed-report', {
+            const response = await fetch('/employee/rafidain/detailed-report', {
                 method: 'GET',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
@@ -151,7 +151,7 @@ export default function RafidainBank({
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(`/rafidain/${action}`, {
+            const response = await fetch(`/employee/rafidain/${action}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
