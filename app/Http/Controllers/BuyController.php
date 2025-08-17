@@ -7,6 +7,7 @@ use Inertia\Inertia;
 use App\Models\BuyTransaction;
 use App\Models\User;
 use App\Models\OpeningBalance;
+use App\Services\CashBalanceService;
 use Illuminate\Support\Facades\DB;
 
 class BuyController extends Controller
@@ -49,13 +50,20 @@ class BuyController extends Controller
             return $sessionUser;
         }
 
+        // تهيئة الرصيد النقدي المركزي من الرصيد الافتتاحي إذا لم يكن موجوداً
+        CashBalanceService::initializeIfNotExists($sessionUser['id']);
+
+        // الحصول على الرصيد النقدي المركزي
+        $currentCashBalance = CashBalanceService::getCurrentBalance();
+
         // Get user's opening balance
         $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
         $dollarBalance = $openingBalance ? $openingBalance->usd_cash : 0;
         $iqd_cash = $openingBalance ? $openingBalance->total_iqd : 0; // استخدام total_iqd بدلاً من iqd_cash
+        $openingCashBalance = $openingBalance ? $openingBalance->naqa : 0;
         $exchangeRate = $openingBalance ? $openingBalance->exchange_rate : 1500;
 
-        // حساب الرصيد النقدي الموحد (نقا + رافدين + راشد + زين كاش + سوبر كي)
+        // حساب الرصيد النقدي الموحد (للعرض فقط)
         $totalCashBalance = ($openingBalance ? $openingBalance->naqa : 0) +
                            ($openingBalance ? $openingBalance->rafidain : 0) +
                            ($openingBalance ? $openingBalance->rashid : 0) +
@@ -78,8 +86,8 @@ class BuyController extends Controller
             ->sum('total_amount');
         $currentIQDBalance = $iqd_cash - $totalAmountWithCommission; // نقص الدينار العراقي
 
-        // حساب الرصيد النقدي الحالي (ينقص بسبب شراء الدولارات)
-        $currentCashBalance = $totalCashBalance - $totalAmountWithCommission;
+        // حساب الرصيد النقدي الحالي (للعرض فقط)
+        $localCashBalance = $totalCashBalance - $totalAmountWithCommission;
 
         // Get recent transactions
         $transactions = BuyTransaction::where('user_id', $sessionUser['id'])
@@ -94,10 +102,10 @@ class BuyController extends Controller
             'user' => $sessionUser,
             'currentDollarBalance' => $currentDollarBalance, // الرصيد الحالي بالدولار
             'currentIQDBalance' => $currentIQDBalance, // الرصيد الحالي بالدينار العراقي
-            'currentCashBalance' => $currentCashBalance, // الرصيد النقدي الحالي
+            'currentCashBalance' => $currentCashBalance, // الرصيد النقدي المركزي
             'openingDollarBalance' => $dollarBalance, // الرصيد الافتتاحي بالدولار
             'openingIQDBalance' => $dollarBalance * $exchangeRate, // الرصيد الافتتاحي بالدينار العراقي
-            'openingCashBalance' => $totalCashBalance, // الرصيد النقدي الافتتاحي
+            'openingCashBalance' => $openingCashBalance, // الرصيد النقدي الافتتاحي
             'exchangeRate' => $exchangeRate,
             'transactions' => $transactions,
             'quickReport' => [
@@ -154,7 +162,16 @@ class BuyController extends Controller
             $commission = $request->commission ?? BuyTransaction::calculateCommission($iqd_amount);
             $totalAmount = $iqd_amount + $commission; // المبلغ الكلي
 
-            // التحقق من توفر الرصيد الكافي بالدولار (المطلوب شراؤه)
+            // التحقق من الرصيد النقدي المركزي
+            $currentCashBalance = CashBalanceService::getCurrentBalance();
+            if ($currentCashBalance < $totalAmount) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'الرصيد النقدي المركزي غير كافي لإجراء هذه العملية. المطلوب: ' . number_format($totalAmount) . ' د.ع، المتوفر: ' . number_format($currentCashBalance) . ' د.ع'
+                ], 400);
+            }
+
+            // التحقق من صحة المبلغ
             if ($dollarAmount <= 0) {
                 return response()->json([
                     'success' => false,
@@ -182,6 +199,14 @@ class BuyController extends Controller
                 'entered_by' => $sessionUser['name']
             ]);
 
+            // تحديث الرصيد النقدي المركزي
+            $cashBalanceData = CashBalanceService::updateForBuyTransaction(
+                $totalAmount, // المبلغ الكلي (بالدينار العراقي + العمولة)
+                $sessionUser['id'],
+                $transaction->id,
+                $request->notes
+            );
+
             DB::commit();
 
             // إعادة حساب التقارير بعد العملية الجديدة
@@ -207,7 +232,7 @@ class BuyController extends Controller
                 'transaction' => $transaction,
                 'new_dollar_balance' => $newDollarBalance,
                 'new_iqd_balance' => $updatedCurrentIQDBalance,
-                'new_cash_balance' => $updatedCurrentCashBalance, // الرصيد النقدي المحدث
+                'new_cash_balance' => $cashBalanceData['new_balance'], // الرصيد النقدي المركزي المحدث
                 'updated_report' => [
                     'charges' => $updatedTotalIQDSpent,
                     'payments' => 0,

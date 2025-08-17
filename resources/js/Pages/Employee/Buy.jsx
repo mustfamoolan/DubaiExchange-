@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import EmployeeLayout from '../../Layouts/EmployeeLayout';
 import { router } from '@inertiajs/react';
 import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
+import { useCentralCashBalance } from '../../Hooks/useCentralCashBalance';
 import ThermalReceipt from '../../Components/ThermalReceipt';
 
 export default function Buy({
@@ -25,6 +26,13 @@ export default function Buy({
         operations: quickReport.operations,
         dollars_bought: quickReport.dollars_bought
     });
+
+    // استخدام hook الرصيد النقدي المركزي
+    const {
+        centralCashBalance,
+        updateBalanceAfterTransaction,
+        fetchCurrentCashBalance
+    } = useCentralCashBalance(currentCashBalance);
 
     const [formData, setFormData] = useState({
         documentNumber: '',
@@ -127,10 +135,10 @@ export default function Buy({
             return;
         }
 
-        // التحقق من كفاية الرصيد النقدي (لأننا ندفع نقداً لشراء الدولارات)
+        // التحقق من كفاية الرصيد النقدي المركزي (لأننا ندفع نقداً لشراء الدولارات)
         const totalCost = getTotalIQD();
-        if (totalCost > cashBalance) {
-            alert(`الرصيد النقدي غير كافي. المطلوب: ${Math.floor(totalCost).toLocaleString()} د.ع، المتاح: ${Math.floor(cashBalance).toLocaleString()} د.ع`);
+        if (totalCost > centralCashBalance) {
+            alert(`الرصيد النقدي المركزي غير كافي. المطلوب: ${Math.floor(totalCost).toLocaleString()} د.ع، المتاح: ${Math.floor(centralCashBalance).toLocaleString()} د.ع`);
             return;
         }
 
@@ -159,6 +167,11 @@ export default function Buy({
                 setDollarBalance(result.new_dollar_balance);
                 setIqd_balance(result.new_iqd_balance);
                 setCashBalance(result.new_cash_balance); // تحديث الرصيد النقدي
+
+                // تحديث الرصيد النقدي المركزي
+                if (result.new_cash_balance !== undefined) {
+                    updateBalanceAfterTransaction(result.new_cash_balance);
+                }
 
                 // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
                 if (result.updated_report) {
@@ -220,10 +233,10 @@ export default function Buy({
             return;
         }
 
-        // التحقق من كفاية الرصيد النقدي (لأننا ندفع نقداً لشراء الدولارات)
+        // التحقق من كفاية الرصيد النقدي المركزي (لأننا ندفع نقداً لشراء الدولارات)
         const totalCost = getTotalIQD();
-        if (totalCost > cashBalance) {
-            alert(`الرصيد النقدي غير كافي. المطلوب: ${Math.floor(totalCost).toLocaleString()} د.ع، المتاح: ${Math.floor(cashBalance).toLocaleString()} د.ع`);
+        if (totalCost > centralCashBalance) {
+            alert(`الرصيد النقدي المركزي غير كافي. المطلوب: ${Math.floor(totalCost).toLocaleString()} د.ع، المتاح: ${Math.floor(centralCashBalance).toLocaleString()} د.ع`);
             return;
         }
 
@@ -253,6 +266,11 @@ export default function Buy({
                 setDollarBalance(result.new_dollar_balance);
                 setIqd_balance(result.new_iqd_balance);
                 setCashBalance(result.new_cash_balance); // تحديث الرصيد النقدي
+
+                // تحديث الرصيد النقدي المركزي
+                if (result.new_cash_balance !== undefined) {
+                    updateBalanceAfterTransaction(result.new_cash_balance);
+                }
 
                 // تحديث تقرير اليوم
                 if (result.updated_report) {
@@ -369,11 +387,11 @@ export default function Buy({
                                     </p>
                                 </div>
 
-                                {/* الرصيد النقدي الحالي */}
+                                {/* الرصيد النقدي المركزي */}
                                 <div className="bg-green-50 rounded-xl p-6">
-                                    <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد النقدي الحالي</h3>
+                                    <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد النقدي المركزي</h3>
                                     <p className="text-3xl font-bold text-green-700">
-                                        {Math.floor(cashBalance).toLocaleString()} د.ع
+                                        {Math.floor(centralCashBalance).toLocaleString()} د.ع
                                     </p>
                                 </div>
                             </div>
@@ -490,9 +508,9 @@ export default function Buy({
                                         max={dollarBalance}
                                         onChange={(e) => handleInputChange('dollarAmount', e.target.value)}
                                     />
-                                    {formData.dollarAmount && getTotalIQD() > cashBalance && (
+                                    {formData.dollarAmount && getTotalIQD() > centralCashBalance && (
                                         <p className="text-sm text-red-600 mt-1">
-                                            الرصيد النقدي غير كافي. المطلوب: {Math.floor(getTotalIQD()).toLocaleString()} د.ع، المتاح: {Math.floor(cashBalance).toLocaleString()} د.ع
+                                            الرصيد النقدي المركزي غير كافي. المطلوب: {Math.floor(getTotalIQD()).toLocaleString()} د.ع، المتاح: {Math.floor(centralCashBalance).toLocaleString()} د.ع
                                         </p>
                                     )}
                                 </div>
@@ -564,7 +582,7 @@ export default function Buy({
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <button
                                     onClick={handleSaveAndPrint}
-                                    disabled={isSubmitting || !formData.dollarAmount || getTotalIQD() > cashBalance}
+                                    disabled={isSubmitting || !formData.dollarAmount || getTotalIQD() > centralCashBalance}
                                     className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-xl transition-colors duration-200 flex items-center justify-center"
                                 >
                                     <span className="ml-2">📄</span>
@@ -572,7 +590,7 @@ export default function Buy({
                                 </button>
                                 <button
                                     onClick={handleSave}
-                                    disabled={isSubmitting || !formData.dollarAmount || getTotalIQD() > cashBalance}
+                                    disabled={isSubmitting || !formData.dollarAmount || getTotalIQD() > centralCashBalance}
                                     className="bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-xl transition-colors duration-200 flex items-center justify-center"
                                 >
                                     <span className="ml-2">💾</span>

@@ -2,14 +2,17 @@ import React, { useState, useEffect } from 'react';
 import EmployeeLayout from '../../Layouts/EmployeeLayout';
 import { router } from '@inertiajs/react';
 import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
+import { useCentralCashBalance } from '../../Hooks/useCentralCashBalance';
 import ThermalReceipt from '../../Components/ThermalReceipt';
 
 export default function Sell({
     user,
     currentDollarBalance = 0,
     currentBalance = 0,
+    currentCashBalance = 0, // الرصيد النقدي المركزي
     openingDollarBalance = 0,
     openingBalance = 0,
+    openingCashBalance = 0, // الرصيد النقدي الافتتاحي
     exchangeRate = 1500,
     transactions = [],
     quickReport = { charges: 0, payments: 0, operations: 0, dollars_sold: 0 }
@@ -22,6 +25,13 @@ export default function Sell({
         operations: quickReport.operations,
         dollars_sold: quickReport.dollars_sold
     });
+
+    // استخدام hook الرصيد النقدي المركزي
+    const {
+        centralCashBalance,
+        updateBalanceAfterTransaction,
+        fetchCurrentCashBalance
+    } = useCentralCashBalance(currentCashBalance);
 
     const [formData, setFormData] = useState({
         documentNumber: '',
@@ -154,6 +164,11 @@ export default function Sell({
                 setDollarBalance(result.new_dollar_balance);
                 setCashBalance(result.new_cash_balance);
 
+                // تحديث الرصيد النقدي المركزي
+                if (result.new_cash_balance !== undefined) {
+                    updateBalanceAfterTransaction(result.new_cash_balance);
+                }
+
                 // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
                 if (result.updated_report) {
                     setTodayReport({
@@ -244,6 +259,11 @@ export default function Sell({
                 // تحديث الأرصدة
                 setDollarBalance(result.new_dollar_balance);
                 setCashBalance(result.new_cash_balance);
+
+                // تحديث الرصيد النقدي المركزي
+                if (result.new_cash_balance !== undefined) {
+                    updateBalanceAfterTransaction(result.new_cash_balance);
+                }
 
                 // تحديث تقرير اليوم
                 if (result.updated_report) {
@@ -360,11 +380,11 @@ export default function Sell({
                                     </p>
                                 </div>
 
-                                {/* الرصيد النقدي الحالي */}
+                                {/* الرصيد النقدي المركزي */}
                                 <div className="bg-green-50 rounded-xl p-6">
-                                    <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد النقدي الحالي</h3>
+                                    <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد النقدي المركزي</h3>
                                     <p className="text-3xl font-bold text-green-700">
-                                        {Math.floor(cashBalance).toLocaleString()} د.ع
+                                        {Math.floor(centralCashBalance).toLocaleString()} د.ع
                                     </p>
                                 </div>
                             </div>
@@ -383,7 +403,7 @@ export default function Sell({
                                     <div className="flex justify-between items-center">
                                         <span className="text-sm font-medium text-gray-700">بالدينار النقدي:</span>
                                         <span className="font-bold text-gray-800">
-                                            {openingBalance > 0 ? Math.floor(openingBalance).toLocaleString() : '0'} د.ع
+                                            {openingCashBalance > 0 ? Math.floor(openingCashBalance).toLocaleString() : '0'} د.ع
                                         </span>
                                     </div>
                                 </div>

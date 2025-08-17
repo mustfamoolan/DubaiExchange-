@@ -7,6 +7,7 @@ use Inertia\Inertia;
 use App\Models\SellTransaction;
 use App\Models\User;
 use App\Models\OpeningBalance;
+use App\Services\CashBalanceService;
 use Illuminate\Support\Facades\DB;
 
 class SellController extends Controller
@@ -49,10 +50,16 @@ class SellController extends Controller
             return $sessionUser;
         }
 
+        // تهيئة الرصيد النقدي المركزي من الرصيد الافتتاحي إذا لم يكن موجوداً
+        CashBalanceService::initializeIfNotExists($sessionUser['id']);
+
+        // الحصول على الرصيد النقدي المركزي
+        $currentCashBalance = CashBalanceService::getCurrentBalance();
+
         // Get user's opening balance for Dollar sales
         $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
         $dollarBalance = $openingBalance ? $openingBalance->usd_cash : 0;
-        $currentNaqaBalance = $openingBalance ? $openingBalance->naqa : 0;
+        $openingCashBalance = $openingBalance ? $openingBalance->naqa : 0;
         $exchangeRate = $openingBalance ? $openingBalance->exchange_rate : 1500;
 
         // حساب إجمالي المستلم (من سندات القبض)
@@ -63,8 +70,8 @@ class SellController extends Controller
         $totalExchanged = \App\Models\ExchangeTransaction::where('user_id', $sessionUser['id'])
             ->sum('amount');
 
-        // حساب الرصيد النقدي الحالي الموحد
-        $currentBalance = $currentNaqaBalance + $totalReceived - $totalExchanged;
+        // حساب الرصيد النقدي الحالي الموحد (للعرض فقط)
+        $currentBalance = $openingCashBalance + $totalReceived - $totalExchanged;
 
         // Calculate total dollars sold (نقص من الدولار)
         $totalDollarsSold = SellTransaction::where('user_id', $sessionUser['id'])
@@ -89,9 +96,11 @@ class SellController extends Controller
         return Inertia::render('Employee/Sell', [
             'user' => $sessionUser,
             'currentDollarBalance' => $currentDollarBalance, // الرصيد الحالي بالدولار
-            'currentBalance' => $currentBalance, // الرصيد النقدي الحالي الموحد
+            'currentBalance' => $currentBalance, // الرصيد النقدي الحالي الموحد (للعرض فقط)
+            'currentCashBalance' => $currentCashBalance, // الرصيد النقدي المركزي
             'openingDollarBalance' => $dollarBalance, // الرصيد الافتتاحي بالدولار
-            'openingBalance' => $currentNaqaBalance, // الرصيد الافتتاحي النقدي
+            'openingBalance' => $openingCashBalance, // الرصيد الافتتاحي النقدي (للعرض فقط)
+            'openingCashBalance' => $openingCashBalance, // الرصيد الافتتاحي النقدي
             'exchangeRate' => $exchangeRate,
             'transactions' => $transactions,
             'quickReport' => [
@@ -151,12 +160,6 @@ class SellController extends Controller
             // Calculate new balances after transaction
             $newDollarBalance = $currentDollarBalance - $dollarAmount; // نقص الدولار
 
-            // تحديث الرصيد النقدي - نضيف المبلغ الكلي للرصيد النقدي
-            if ($openingBalance) {
-                $openingBalance->naqa += $totalAmount; // إضافة المبلغ الكلي (المبلغ + العمولة) للرصيد النقدي
-                $openingBalance->save();
-            }
-
             // Create transaction record
             $transaction = SellTransaction::create([
                 'user_id' => $sessionUser['id'],
@@ -173,6 +176,14 @@ class SellController extends Controller
                 'entered_by' => $sessionUser['name']
             ]);
 
+            // تحديث الرصيد النقدي المركزي
+            $cashBalanceData = CashBalanceService::updateForSellTransaction(
+                $totalAmount, // المبلغ الكلي (بالدينار العراقي + العمولة)
+                $sessionUser['id'],
+                $transaction->id,
+                $request->notes
+            );
+
             DB::commit();
 
             // إعادة حساب التقارير بعد العملية الجديدة
@@ -182,7 +193,7 @@ class SellController extends Controller
             $updatedTotalOperations = SellTransaction::where('user_id', $sessionUser['id'])->count();
             $updatedDollarsSold = SellTransaction::where('user_id', $sessionUser['id'])->sum('dollar_amount');
 
-            // حساب الرصيد النقدي المحدث
+            // حساب الرصيد النقدي المحدث (للعرض فقط)
             $updatedOpeningBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
             $updatedNaqaBalance = $updatedOpeningBalance ? $updatedOpeningBalance->naqa : 0;
             $updatedTotalReceived = \App\Models\ReceiveTransaction::where('user_id', $sessionUser['id'])->sum('amount_in_iqd');
@@ -194,7 +205,7 @@ class SellController extends Controller
                 'message' => 'تم إجراء عملية البيع بنجاح',
                 'transaction' => $transaction,
                 'new_dollar_balance' => $newDollarBalance,
-                'new_cash_balance' => $updatedCashBalance,
+                'new_cash_balance' => $cashBalanceData['new_balance'], // الرصيد النقدي المركزي المحدث
                 'updated_report' => [
                     'charges' => 0,
                     'payments' => $updatedTotalIQDReceived,
