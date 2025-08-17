@@ -1,34 +1,34 @@
 {
-  "_AdminLayout-BFQv9pkz.js": {
-    "file": "assets/AdminLayout-BFQv9pkz.js",
+  "_AdminLayout-BCxeeB9K.js": {
+    "file": "assets/AdminLayout-BCxeeB9K.js",
     "name": "AdminLayout",
     "imports": [
       "resources/js/app.jsx"
     ]
   },
-  "_EmployeeLayout-BO_Cgqi-.js": {
-    "file": "assets/EmployeeLayout-BO_Cgqi-.js",
+  "_EmployeeLayout-DE-9miL8.js": {
+    "file": "assets/EmployeeLayout-DE-9miL8.js",
     "name": "EmployeeLayout",
     "imports": [
       "resources/js/app.jsx"
     ]
   },
-  "_ReceiveExchangeThermalReceipt-DG9ZWwbv.js": {
-    "file": "assets/ReceiveExchangeThermalReceipt-DG9ZWwbv.js",
+  "_ReceiveExchangeThermalReceipt-Bkwyh5bG.js": {
+    "file": "assets/ReceiveExchangeThermalReceipt-Bkwyh5bG.js",
     "name": "ReceiveExchangeThermalReceipt",
     "imports": [
       "resources/js/app.jsx"
     ]
   },
-  "_ThermalReceipt-DxkOYbEQ.js": {
-    "file": "assets/ThermalReceipt-DxkOYbEQ.js",
+  "_ThermalReceipt-5K19J9yh.js": {
+    "file": "assets/ThermalReceipt-5K19J9yh.js",
     "name": "ThermalReceipt",
     "imports": [
       "resources/js/app.jsx"
     ]
   },
-  "_useCentralCashBalance-pDd_nO9Z.js": {
-    "file": "assets/useCentralCashBalance-pDd_nO9Z.js",
+  "_useCentralCashBalance-DpSgfsef.js": {
+    "file": "assets/useCentralCashBalance-DpSgfsef.js",
     "name": "useCentralCashBalance",
     "imports": [
       "resources/js/app.jsx"
@@ -43,150 +43,150 @@
     ]
   },
   "resources/js/Pages/Admin/CustomerStatement.jsx": {
-    "file": "assets/CustomerStatement-wHgs-LqU.js",
+    "file": "assets/CustomerStatement-D6IlAMLU.js",
     "name": "CustomerStatement",
     "src": "resources/js/Pages/Admin/CustomerStatement.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_AdminLayout-BFQv9pkz.js"
+      "_AdminLayout-BCxeeB9K.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Admin/Customers.jsx": {
-    "file": "assets/Customers-DBWVhEUB.js",
+    "file": "assets/Customers-C9GmsseZ.js",
     "name": "Customers",
     "src": "resources/js/Pages/Admin/Customers.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_AdminLayout-BFQv9pkz.js"
+      "_AdminLayout-BCxeeB9K.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Admin/Dashboard.jsx": {
-    "file": "assets/Dashboard-C3wK_I1S.js",
+    "file": "assets/Dashboard-DCYC-N9S.js",
     "name": "Dashboard",
     "src": "resources/js/Pages/Admin/Dashboard.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_AdminLayout-BFQv9pkz.js"
+      "_AdminLayout-BCxeeB9K.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Admin/EmployeeDetails.jsx": {
-    "file": "assets/EmployeeDetails-BFqyfBJJ.js",
+    "file": "assets/EmployeeDetails-CczmR9i9.js",
     "name": "EmployeeDetails",
     "src": "resources/js/Pages/Admin/EmployeeDetails.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_AdminLayout-BFQv9pkz.js"
+      "_AdminLayout-BCxeeB9K.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Admin/Employees.jsx": {
-    "file": "assets/Employees-DbiJ-r_o.js",
+    "file": "assets/Employees-Auq-l1Sc.js",
     "name": "Employees",
     "src": "resources/js/Pages/Admin/Employees.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_AdminLayout-BFQv9pkz.js"
+      "_AdminLayout-BCxeeB9K.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Admin/EmployeesList.jsx": {
-    "file": "assets/EmployeesList-BoQj09vj.js",
+    "file": "assets/EmployeesList-CEOY3Mlt.js",
     "name": "EmployeesList",
     "src": "resources/js/Pages/Admin/EmployeesList.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_AdminLayout-BFQv9pkz.js"
+      "_AdminLayout-BCxeeB9K.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Admin/OpeningBalance.jsx": {
-    "file": "assets/OpeningBalance-OIRTeC7z.js",
+    "file": "assets/OpeningBalance-C_b7_wsZ.js",
     "name": "OpeningBalance",
     "src": "resources/js/Pages/Admin/OpeningBalance.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_AdminLayout-BFQv9pkz.js"
+      "_AdminLayout-BCxeeB9K.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Admin/Operations.jsx": {
-    "file": "assets/Operations-NHTtTAmL.js",
+    "file": "assets/Operations-BDOly99E.js",
     "name": "Operations",
     "src": "resources/js/Pages/Admin/Operations.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_AdminLayout-BFQv9pkz.js"
+      "_AdminLayout-BCxeeB9K.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Admin/Reports.jsx": {
-    "file": "assets/Reports-CEf8kTWW.js",
+    "file": "assets/Reports-CWnpV7Z-.js",
     "name": "Reports",
     "src": "resources/js/Pages/Admin/Reports.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_AdminLayout-BFQv9pkz.js"
+      "_AdminLayout-BCxeeB9K.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Admin/Settings.jsx": {
-    "file": "assets/Settings-TDxUAubq.js",
+    "file": "assets/Settings-DHiyw0C4.js",
     "name": "Settings",
     "src": "resources/js/Pages/Admin/Settings.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_AdminLayout-BFQv9pkz.js"
+      "_AdminLayout-BCxeeB9K.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Admin/TransactionLog.jsx": {
-    "file": "assets/TransactionLog-BEBGlxfB.js",
+    "file": "assets/TransactionLog-Cfb5iUkh.js",
     "name": "TransactionLog",
     "src": "resources/js/Pages/Admin/TransactionLog.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_AdminLayout-BFQv9pkz.js"
+      "_AdminLayout-BCxeeB9K.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Auth/Login.jsx": {
-    "file": "assets/Login-CSnwL1ww.js",
+    "file": "assets/Login-DzZSTxU7.js",
     "name": "Login",
     "src": "resources/js/Pages/Auth/Login.jsx",
     "isDynamicEntry": true,
@@ -198,283 +198,284 @@
     ]
   },
   "resources/js/Pages/Employee/Balance.jsx": {
-    "file": "assets/Balance-Bm7_yMSu.js",
+    "file": "assets/Balance-Dd5fJCT6.js",
     "name": "Balance",
     "src": "resources/js/Pages/Employee/Balance.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js"
+      "_EmployeeLayout-DE-9miL8.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Employee/Buy.jsx": {
-    "file": "assets/Buy-Rp4y2soA.js",
+    "file": "assets/Buy-DATAgK_O.js",
     "name": "Buy",
     "src": "resources/js/Pages/Employee/Buy.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js",
-      "_ThermalReceipt-DxkOYbEQ.js",
-      "_useCentralCashBalance-pDd_nO9Z.js"
+      "_EmployeeLayout-DE-9miL8.js",
+      "_ThermalReceipt-5K19J9yh.js",
+      "_useCentralCashBalance-DpSgfsef.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Employee/BuyNew.jsx": {
-    "file": "assets/BuyNew-BPsh0jRW.js",
+    "file": "assets/BuyNew-IKNKveuN.js",
     "name": "BuyNew",
     "src": "resources/js/Pages/Employee/BuyNew.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js"
+      "_EmployeeLayout-DE-9miL8.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Employee/BuyOld.jsx": {
-    "file": "assets/BuyOld-DjtEKhCZ.js",
+    "file": "assets/BuyOld-C0EjxoyF.js",
     "name": "BuyOld",
     "src": "resources/js/Pages/Employee/BuyOld.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js"
+      "_EmployeeLayout-DE-9miL8.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Employee/ClosingBalance.jsx": {
-    "file": "assets/ClosingBalance-erI55qAq.js",
+    "file": "assets/ClosingBalance-DwIyYcN2.js",
     "name": "ClosingBalance",
     "src": "resources/js/Pages/Employee/ClosingBalance.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js"
+      "_EmployeeLayout-DE-9miL8.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Employee/CustomerStatement.jsx": {
-    "file": "assets/CustomerStatement-o4ncQT9F.js",
+    "file": "assets/CustomerStatement-CrjJ-_Vu.js",
     "name": "CustomerStatement",
     "src": "resources/js/Pages/Employee/CustomerStatement.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js"
+      "_EmployeeLayout-DE-9miL8.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Employee/Customers.jsx": {
-    "file": "assets/Customers-B7t6AlS5.js",
+    "file": "assets/Customers-BG1XJnbo.js",
     "name": "Customers",
     "src": "resources/js/Pages/Employee/Customers.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js"
+      "_EmployeeLayout-DE-9miL8.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Employee/Dashboard.jsx": {
-    "file": "assets/Dashboard-D_klr6R7.js",
+    "file": "assets/Dashboard-DRNpX1RR.js",
     "name": "Dashboard",
     "src": "resources/js/Pages/Employee/Dashboard.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js"
+      "_EmployeeLayout-DE-9miL8.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Employee/Exchange.jsx": {
-    "file": "assets/Exchange-D3cXsVW9.js",
+    "file": "assets/Exchange-BE6zmlVy.js",
     "name": "Exchange",
     "src": "resources/js/Pages/Employee/Exchange.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js",
-      "_ThermalReceipt-DxkOYbEQ.js",
-      "_ReceiveExchangeThermalReceipt-DG9ZWwbv.js"
+      "_EmployeeLayout-DE-9miL8.js",
+      "_ThermalReceipt-5K19J9yh.js",
+      "_ReceiveExchangeThermalReceipt-Bkwyh5bG.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Employee/OpeningBalance.jsx": {
-    "file": "assets/OpeningBalance-C0fBjEaS.js",
+    "file": "assets/OpeningBalance-J_12eUm0.js",
     "name": "OpeningBalance",
     "src": "resources/js/Pages/Employee/OpeningBalance.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js"
+      "_EmployeeLayout-DE-9miL8.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Employee/RafidainBank.jsx": {
-    "file": "assets/RafidainBank-CUHhG8_M.js",
+    "file": "assets/RafidainBank-B_D7vvQl.js",
     "name": "RafidainBank",
     "src": "resources/js/Pages/Employee/RafidainBank.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js",
-      "_ThermalReceipt-DxkOYbEQ.js",
-      "_useCentralCashBalance-pDd_nO9Z.js"
+      "_EmployeeLayout-DE-9miL8.js",
+      "_ThermalReceipt-5K19J9yh.js",
+      "_useCentralCashBalance-DpSgfsef.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Employee/RashidBank.jsx": {
-    "file": "assets/RashidBank-KfDIh-dH.js",
+    "file": "assets/RashidBank-CjS6LAua.js",
     "name": "RashidBank",
     "src": "resources/js/Pages/Employee/RashidBank.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js",
-      "_ThermalReceipt-DxkOYbEQ.js",
-      "_useCentralCashBalance-pDd_nO9Z.js"
+      "_EmployeeLayout-DE-9miL8.js",
+      "_ThermalReceipt-5K19J9yh.js",
+      "_useCentralCashBalance-DpSgfsef.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Employee/Receive.jsx": {
-    "file": "assets/Receive-DoPkBKdF.js",
+    "file": "assets/Receive-C6acF5MS.js",
     "name": "Receive",
     "src": "resources/js/Pages/Employee/Receive.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js",
-      "_ThermalReceipt-DxkOYbEQ.js",
-      "_ReceiveExchangeThermalReceipt-DG9ZWwbv.js"
+      "_EmployeeLayout-DE-9miL8.js",
+      "_ThermalReceipt-5K19J9yh.js",
+      "_useCentralCashBalance-DpSgfsef.js",
+      "_ReceiveExchangeThermalReceipt-Bkwyh5bG.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Employee/Sell.jsx": {
-    "file": "assets/Sell-bu_7Zu4q.js",
+    "file": "assets/Sell-D6ddICCM.js",
     "name": "Sell",
     "src": "resources/js/Pages/Employee/Sell.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js",
-      "_ThermalReceipt-DxkOYbEQ.js",
-      "_useCentralCashBalance-pDd_nO9Z.js"
+      "_EmployeeLayout-DE-9miL8.js",
+      "_ThermalReceipt-5K19J9yh.js",
+      "_useCentralCashBalance-DpSgfsef.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Employee/SellNew.jsx": {
-    "file": "assets/SellNew-q4CztTuS.js",
+    "file": "assets/SellNew-DyrcRQTR.js",
     "name": "SellNew",
     "src": "resources/js/Pages/Employee/SellNew.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js"
+      "_EmployeeLayout-DE-9miL8.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Employee/SellOld.jsx": {
-    "file": "assets/SellOld-C6OX5mdn.js",
+    "file": "assets/SellOld-CyhRg1Bu.js",
     "name": "SellOld",
     "src": "resources/js/Pages/Employee/SellOld.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js"
+      "_EmployeeLayout-DE-9miL8.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Employee/SuperKey.jsx": {
-    "file": "assets/SuperKey-CSRmjqxr.js",
+    "file": "assets/SuperKey-BEeLIr8E.js",
     "name": "SuperKey",
     "src": "resources/js/Pages/Employee/SuperKey.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js",
-      "_ThermalReceipt-DxkOYbEQ.js",
-      "_useCentralCashBalance-pDd_nO9Z.js"
+      "_EmployeeLayout-DE-9miL8.js",
+      "_ThermalReceipt-5K19J9yh.js",
+      "_useCentralCashBalance-DpSgfsef.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Employee/Transactions.jsx": {
-    "file": "assets/Transactions-Cu8oAwtT.js",
+    "file": "assets/Transactions-BAMqPblf.js",
     "name": "Transactions",
     "src": "resources/js/Pages/Employee/Transactions.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js"
+      "_EmployeeLayout-DE-9miL8.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Employee/Travelers.jsx": {
-    "file": "assets/Travelers-CNlfUmFw.js",
+    "file": "assets/Travelers-Dac2OWIX.js",
     "name": "Travelers",
     "src": "resources/js/Pages/Employee/Travelers.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js"
+      "_EmployeeLayout-DE-9miL8.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/Pages/Employee/ZainCash.jsx": {
-    "file": "assets/ZainCash-BW3knUM5.js",
+    "file": "assets/ZainCash-BY8-V2Cp.js",
     "name": "ZainCash",
     "src": "resources/js/Pages/Employee/ZainCash.jsx",
     "isDynamicEntry": true,
     "imports": [
       "resources/js/app.jsx",
-      "_EmployeeLayout-BO_Cgqi-.js",
-      "_ThermalReceipt-DxkOYbEQ.js",
-      "_useCentralCashBalance-pDd_nO9Z.js"
+      "_EmployeeLayout-DE-9miL8.js",
+      "_ThermalReceipt-5K19J9yh.js",
+      "_useCentralCashBalance-DpSgfsef.js"
     ],
     "css": [
       "assets/app-CBgKYQNb.css"
     ]
   },
   "resources/js/app.jsx": {
-    "file": "assets/app-BdEaxmMx.js",
+    "file": "assets/app-CZvDt-42.js",
     "name": "app",
     "src": "resources/js/app.jsx",
     "isEntry": true,

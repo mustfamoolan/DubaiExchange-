@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import EmployeeLayout from '../../Layouts/EmployeeLayout';
 import { router } from '@inertiajs/react';
 import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
+import { useCentralCashBalance } from '../../Hooks/useCentralCashBalance';
 import ThermalReceipt from '../../Components/ThermalReceipt';
 import { useReceiveExchangeReceipt } from '../../Hooks/useReceiveExchangeReceipt';
 import ReceiveExchangeThermalReceipt from '../../Components/ReceiveExchangeThermalReceipt';
@@ -9,7 +10,9 @@ import ReceiveExchangeThermalReceipt from '../../Components/ReceiveExchangeTherm
 export default function Receive({
     user,
     currentBalance = 0,
+    currentCashBalance = 0, // الرصيد النقدي المركزي
     openingBalance = 0,
+    openingCashBalance = 0, // الرصيد النقدي الافتتاحي
     transactions = [],
     quickReport = { received_today: 0, operations: 0, total_received: 0, total_exchanged: 0 }
 }) {
@@ -21,6 +24,13 @@ export default function Receive({
         total_received: quickReport.total_received,
         total_exchanged: quickReport.total_exchanged
     });
+
+    // استخدام hook الرصيد النقدي المركزي
+    const {
+        centralCashBalance,
+        updateBalanceAfterTransaction,
+        fetchCurrentCashBalance
+    } = useCentralCashBalance(currentCashBalance);
 
     // استخدام hook الفواتير الحرارية العامة
     const {
@@ -377,6 +387,11 @@ export default function Receive({
             // تحديث الرصيد
             setBalance(result.new_balance);
 
+            // تحديث الرصيد النقدي المركزي
+            if (result.new_cash_balance !== undefined) {
+                updateBalanceAfterTransaction(result.new_cash_balance);
+            }
+
             // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
             if (result.updated_report) {
                 setTodayReport({
@@ -472,6 +487,11 @@ export default function Receive({
 
                 // تحديث الرصيد
                 setBalance(result.new_balance);
+
+                // تحديث الرصيد النقدي المركزي
+                if (result.new_cash_balance !== undefined) {
+                    updateBalanceAfterTransaction(result.new_cash_balance);
+                }
 
                 // تحديث تقرير اليوم بالبيانات الحديثة من الخادم
                 if (result.updated_report) {
@@ -616,16 +636,16 @@ export default function Receive({
                                 <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                                     <span className="text-2xl text-green-600">📝</span>
                                 </div>
-                                <h2 className="text-xl font-bold text-gray-900">الرصيد الحالي (نقداً)</h2>
+                                <h2 className="text-xl font-bold text-gray-900">الرصيد النقدي المركزي</h2>
                             </div>
 
                             {/* عرض الرصيد */}
                             <div className="space-y-4 mb-6">
-                                {/* الرصيد الحالي */}
+                                {/* الرصيد النقدي المركزي */}
                                 <div className="bg-green-50 rounded-xl p-6">
-                                    <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد الحالي</h3>
+                                    <h3 className="text-lg font-semibold text-green-800 mb-2">الرصيد النقدي المركزي</h3>
                                     <p className="text-3xl font-bold text-green-700">
-                                        {Math.floor(balance).toLocaleString()} د.ع
+                                        {Math.floor(centralCashBalance).toLocaleString()} د.ع
                                     </p>
                                 </div>
 

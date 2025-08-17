@@ -7,6 +7,7 @@ use Inertia\Inertia;
 use App\Models\ReceiveTransaction;
 use App\Models\User;
 use App\Models\OpeningBalance;
+use App\Services\CashBalanceService;
 use Illuminate\Support\Facades\DB;
 
 class ReceiveController extends Controller
@@ -49,6 +50,12 @@ class ReceiveController extends Controller
             return $sessionUser;
         }
 
+        // تهيئة الرصيد النقدي المركزي من الرصيد الافتتاحي إذا لم يكن موجوداً
+        CashBalanceService::initializeIfNotExists($sessionUser['id']);
+
+        // الحصول على الرصيد النقدي المركزي
+        $currentCashBalance = CashBalanceService::getCurrentBalance();
+
         // الحصول على الرصيد الافتتاحي النقدي
         $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
         $currentNaqaBalance = $openingBalance ? $openingBalance->naqa : 0;
@@ -88,7 +95,9 @@ class ReceiveController extends Controller
         return Inertia::render('Employee/Receive', [
             'user' => $sessionUser,
             'currentBalance' => $currentBalance,
+            'currentCashBalance' => $currentCashBalance, // الرصيد النقدي المركزي
             'openingBalance' => $currentNaqaBalance,
+            'openingCashBalance' => $currentNaqaBalance, // الرصيد النقدي الافتتاحي
             'transactions' => $transactions,
             'quickReport' => $quickReport
         ]);
@@ -155,6 +164,14 @@ class ReceiveController extends Controller
                 'entered_by' => $sessionUser['name']
             ]);
 
+            // تحديث الرصيد النقدي المركزي
+            $cashBalanceData = CashBalanceService::updateForReceiveTransaction(
+                $amountInIqd, // المبلغ بالدينار العراقي
+                $sessionUser['id'],
+                $transaction->id,
+                $request->notes
+            );
+
             // إنشاء معاملة عميل إذا تم اختيار عميل
             if ($request->selectedCustomer && isset($request->selectedCustomer['id'])) {
                 $customer = \App\Models\Customer::find($request->selectedCustomer['id']);
@@ -216,6 +233,7 @@ class ReceiveController extends Controller
                 'message' => 'تم حفظ سند القبض بنجاح',
                 'transaction' => $transaction,
                 'new_balance' => $newBalance,
+                'new_cash_balance' => $cashBalanceData['new_balance'], // الرصيد النقدي المركزي المحدث
                 'updated_report' => [
                     'received_today' => $updatedTodayReceived,
                     'operations' => $updatedOperations,
