@@ -52,9 +52,9 @@ export default function Sell() {
                     <div className="flex items-center justify-between mb-8">
                         <button
                             onClick={handleBack}
-                            className="flex items-center text-gray-600 hover:text-gray-800 transition-colors"
+                            className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors duration-200 shadow-md"
                         >
-                            <span className="ml-2">←</span>
+                            <span>←</span>
                             العودة للصفحة الرئيسية
                         </button>
                         <h1 className="text-2xl font-bold text-gray-900">سند بيع دولار</h1>

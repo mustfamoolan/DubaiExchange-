@@ -343,7 +343,7 @@ export default function Sell({
                 <div className="mb-6">
                     <button
                         onClick={handleBack}
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200"
+                        className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors duration-200 shadow-md"
                     >
                         <span>←</span>
                         <span>العودة للصفحة الرئيسية</span>
@@ -368,7 +368,7 @@ export default function Sell({
                                     />
                                     <span className="text-2xl text-orange-600 hidden">🏪</span>
                                 </div>
-                                <h2 className="text-xl font-bold text-gray-900">الرصيد الحالي</h2>
+                                <h2 className="text-xl font-bold text-gray-900">بيع الدولار</h2>
                             </div>
 
                             {/* عرض الرصيد */}

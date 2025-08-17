@@ -144,6 +144,17 @@ export default function Customers({ customers: initialCustomers = [] }) {
 
     return (
         <EmployeeLayout title="إدارة العملاء">
+            {/* زر الرجوع */}
+            <div className="mb-6">
+                <button
+                    onClick={() => window.location.href = '/employee/dashboard'}
+                    className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors duration-200 shadow-md"
+                >
+                    <span>←</span>
+                    <span>العودة للصفحة الرئيسية</span>
+                </button>
+            </div>
+
             {/* رسائل النجاح والخطأ */}
             {flash.success && (
                 <div className="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">

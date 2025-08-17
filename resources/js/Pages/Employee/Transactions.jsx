@@ -105,6 +105,17 @@ export default function Transactions({
     return (
         <EmployeeLayout title="سجل المعاملات">
             <div className="max-w-7xl mx-auto">
+                {/* زر الرجوع */}
+                <div className="mb-6">
+                    <button
+                        onClick={() => window.location.href = '/employee/dashboard'}
+                        className="flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors duration-200 shadow-md"
+                    >
+                        <span>←</span>
+                        <span>العودة للصفحة الرئيسية</span>
+                    </button>
+                </div>
+
                 {/* رأس الصفحة والإحصائيات */}
                 <div className="bg-white rounded-lg shadow p-6 mb-6">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
