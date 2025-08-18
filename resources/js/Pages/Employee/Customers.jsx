@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, usePage, Link } from '@inertiajs/react';
 import EmployeeLayout from '@/Layouts/EmployeeLayout';
+import NotificationModal from '@/Components/NotificationModal';
+import { useNotification } from '@/hooks/useNotification';
 
 export default function Customers({ customers: initialCustomers = [] }) {
     const { flash } = usePage().props;
@@ -8,8 +10,9 @@ export default function Customers({ customers: initialCustomers = [] }) {
     const [showEditForm, setShowEditForm] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [deletingCustomer, setDeletingCustomer] = useState(null);
+
+    // نظام الإشعارات
+    const { notification, showSuccess, showError, showWarning, showInfo } = useNotification();
 
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
@@ -30,6 +33,15 @@ export default function Customers({ customers: initialCustomers = [] }) {
     // استخدام البيانات من الخادم
     const [customers, setCustomers] = useState(initialCustomers);
 
+    // التعامل مع رسائل Flash من الخادم
+    useEffect(() => {
+        if (flash.success) {
+            showSuccess('نجح العملية', flash.success);
+        } else if (flash.error) {
+            showError('فشل العملية', flash.error);
+        }
+    }, [flash]);
+
     const filteredCustomers = customers.filter(customer =>
         customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         customer.phone.includes(searchTerm) ||
@@ -46,7 +58,7 @@ export default function Customers({ customers: initialCustomers = [] }) {
                 window.location.reload();
             },
             onError: () => {
-                // الأخطاء ستظهر تلقائياً من خلال نظام Inertia
+                showError('فشل في إضافة العميل', 'حدث خطأ أثناء إضافة العميل. يرجى المحاولة مرة أخرى');
             }
         });
     };
@@ -70,9 +82,13 @@ export default function Customers({ customers: initialCustomers = [] }) {
                             : customer
                     )
                 );
+                showSuccess('تم تحديث حالة العميل', 'تم تغيير حالة تفعيل العميل بنجاح');
+            } else {
+                showError('فشل في تحديث الحالة', 'حدث خطأ أثناء تحديث حالة العميل');
             }
         } catch (error) {
             console.error('Error toggling customer status:', error);
+            showError('خطأ في الاتصال', 'حدث خطأ في الاتصال بالخادم');
         }
     };
 
@@ -100,21 +116,14 @@ export default function Customers({ customers: initialCustomers = [] }) {
                 window.location.reload();
             },
             onError: () => {
-                // الأخطاء ستظهر تلقائياً من خلال نظام Inertia
+                showError('فشل في تحديث العميل', 'حدث خطأ أثناء تحديث بيانات العميل');
             }
         });
     };
 
-    const handleDelete = (customer) => {
-        setDeletingCustomer(customer);
-        setShowDeleteModal(true);
-    };
-
-    const confirmDelete = async () => {
-        if (!deletingCustomer) return;
-
+    const handleDelete = async (customer) => {
         try {
-            const response = await fetch(`/employee/customers/${deletingCustomer.id}`, {
+            const response = await fetch(`/employee/customers/${customer.id}`, {
                 method: 'DELETE',
                 headers: {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
@@ -124,15 +133,14 @@ export default function Customers({ customers: initialCustomers = [] }) {
 
             if (response.ok) {
                 // إزالة العميل من القائمة محلياً
-                setCustomers(prev => prev.filter(customer => customer.id !== deletingCustomer.id));
-                setShowDeleteModal(false);
-                setDeletingCustomer(null);
+                setCustomers(prev => prev.filter(c => c.id !== customer.id));
+                showSuccess('تم حذف العميل', `تم حذف العميل "${customer.name}" بنجاح`);
             } else {
-                alert('حدث خطأ أثناء حذف العميل');
+                showError('فشل في حذف العميل', 'حدث خطأ أثناء حذف العميل');
             }
         } catch (error) {
             console.error('Error deleting customer:', error);
-            alert('حدث خطأ أثناء حذف العميل');
+            showError('خطأ في الاتصال', 'حدث خطأ في الاتصال بالخادم');
         }
     };
 
@@ -692,47 +700,14 @@ export default function Customers({ customers: initialCustomers = [] }) {
                 )}
             </div>
 
-            {/* نافذة تأكيد الحذف */}
-            {showDeleteModal && deletingCustomer && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg max-w-md w-full p-6">
-                        <div className="flex items-center mb-4">
-                            <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
-                                <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div className="text-center">
-                            <h3 className="text-lg font-medium text-gray-900 mb-2">تأكيد حذف العميل</h3>
-                            <p className="text-sm text-gray-500 mb-6 text-right">
-                                هل أنت متأكد من حذف العميل "<strong>{deletingCustomer.name}</strong>"؟
-                                <br />
-                                لا يمكن التراجع عن هذا الإجراء.
-                            </p>
-                        </div>
-                        <div className="flex flex-col sm:flex-row gap-3 justify-end">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setShowDeleteModal(false);
-                                    setDeletingCustomer(null);
-                                }}
-                                className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors duration-200"
-                            >
-                                إلغاء
-                            </button>
-                            <button
-                                type="button"
-                                onClick={confirmDelete}
-                                className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition-colors duration-200"
-                            >
-                                حذف العميل
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* مكون الإشعارات */}
+            <NotificationModal
+                isOpen={notification.isOpen}
+                onClose={notification.onClose}
+                type={notification.type}
+                title={notification.title}
+                message={notification.message}
+            />
         </EmployeeLayout>
     );
 }

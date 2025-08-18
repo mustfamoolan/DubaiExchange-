@@ -83,69 +83,39 @@ class EmployeeCustomerController extends Controller
     {
         $sessionUser = $this->checkAuth();
         if ($sessionUser instanceof \Illuminate\Http\RedirectResponse) {
-            return response()->json(['success' => false, 'message' => 'جلسة العمل منتهية الصلاحية'], 401);
+            return $sessionUser;
         }
 
-        try {
-            $request->validate([
-                'name' => 'required|string|max:255',
-                'phone' => 'required|string|unique:customers,phone',
-                'opening_balance_iqd' => 'nullable|numeric',
-                'opening_balance_usd' => 'nullable|numeric'
-            ], [
-                'name.required' => 'اسم العميل مطلوب',
-                'phone.required' => 'رقم الهاتف مطلوب',
-                'phone.unique' => 'رقم الهاتف مستخدم مسبقاً',
-                'opening_balance_iqd.numeric' => 'الرصيد الافتتاحي دينار يجب أن يكون رقم',
-                'opening_balance_usd.numeric' => 'الرصيد الافتتاحي دولار يجب أن يكون رقم',
-            ]);
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'phone' => 'required|string|unique:customers,phone|regex:/^07[0-9]{9}$/',
+            'iqd_opening_balance' => 'required|numeric',
+            'usd_opening_balance' => 'required|numeric',
+            'notes' => 'nullable|string|max:1000'
+        ], [
+            'name.required' => 'اسم العميل مطلوب',
+            'phone.required' => 'رقم الهاتف مطلوب',
+            'phone.unique' => 'رقم الهاتف مستخدم مسبقاً',
+            'phone.regex' => 'رقم الهاتف يجب أن يبدأ بـ 07 ويكون 11 رقم',
+            'iqd_opening_balance.required' => 'الرصيد الافتتاحي دينار مطلوب',
+            'iqd_opening_balance.numeric' => 'الرصيد الافتتاحي دينار يجب أن يكون رقم',
+            'usd_opening_balance.required' => 'الرصيد الافتتاحي دولار مطلوب',
+            'usd_opening_balance.numeric' => 'الرصيد الافتتاحي دولار يجب أن يكون رقم',
+        ]);
 
-            $iqdOpeningBalance = floatval($request->opening_balance_iqd ?? 0);
-            $usdOpeningBalance = floatval($request->opening_balance_usd ?? 0);
+        $customer = Customer::create([
+            'customer_code' => Customer::generateCustomerCode(),
+            'name' => $request->name,
+            'phone' => $request->phone,
+            'iqd_opening_balance' => $request->iqd_opening_balance,
+            'usd_opening_balance' => $request->usd_opening_balance,
+            'current_iqd_balance' => $request->iqd_opening_balance,
+            'current_usd_balance' => $request->usd_opening_balance,
+            'notes' => $request->notes,
+            'is_active' => true
+        ]);
 
-            $customer = Customer::create([
-                'customer_code' => Customer::generateCustomerCode(),
-                'name' => $request->name,
-                'phone' => $request->phone,
-                'iqd_opening_balance' => $iqdOpeningBalance,
-                'usd_opening_balance' => $usdOpeningBalance,
-                'current_iqd_balance' => $iqdOpeningBalance,
-                'current_usd_balance' => $usdOpeningBalance,
-                'notes' => $request->notes ?? null,
-                'is_active' => true
-            ]);
-
-            // إرجاع بيانات العميل بنفس التنسيق المطلوب للعرض
-            $customerData = [
-                'id' => $customer->id,
-                'customer_code' => $customer->customer_code,
-                'name' => $customer->name,
-                'phone' => $customer->phone,
-                'email' => $customer->email,
-                'current_iqd_balance' => $customer->current_iqd_balance,
-                'current_usd_balance' => $customer->current_usd_balance,
-                'remaining_balance' => $customer->remaining_balance ?? 0,
-                'is_active' => $customer->is_active
-            ];
-
-            return response()->json([
-                'success' => true,
-                'message' => 'تم إضافة العميل بنجاح - رمز العميل: ' . $customer->customer_code,
-                'customer' => $customerData
-            ]);
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'خطأ في البيانات المدخلة',
-                'errors' => $e->errors()
-            ], 422);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'حدث خطأ أثناء إضافة العميل: ' . $e->getMessage()
-            ], 500);
-        }
+        return back()->with('success', 'تم إضافة العميل بنجاح - رمز العميل: ' . $customer->customer_code);
     }
 
     /**
