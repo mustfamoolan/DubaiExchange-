@@ -3,6 +3,8 @@ import EmployeeLayout from '../../Layouts/EmployeeLayout';
 import { router } from '@inertiajs/react';
 import { useCentralCashBalance } from '../../Hooks/useCentralCashBalance';
 import { generateUniqueReference } from '../../Utils/generateUniqueReference';
+import NotificationModal from '../../Components/NotificationModal';
+import { useNotification } from '../../Hooks/useNotification';
 
 export default function Travelers({
     user,
@@ -14,6 +16,16 @@ export default function Travelers({
 }) {
     // استخدام نظام الرصيد النقدي المركزي
     const { centralCashBalance, updateBalanceAfterTransaction } = useCentralCashBalance(currentCashBalance);
+
+    // استخدام hook الإشعارات
+    const {
+        notification,
+        showSuccess,
+        showError,
+        showWarning,
+        showInfo,
+        closeNotification
+    } = useNotification();
 
     const [formData, setFormData] = useState({
         receiptNumber: '',
@@ -115,12 +127,12 @@ export default function Travelers({
     // إرسال المعاملة
     const handleSubmit = async () => {
         if (!formData.tripNumber || !formData.fullName || !formData.usdAmount || !formData.iqdAmount) {
-            alert('يرجى ملء جميع الحقول المطلوبة');
+            showWarning('تحذير', 'يرجى ملء جميع الحقول المطلوبة');
             return;
         }
 
         if (parseFloat(formData.usdAmount) <= 0 || parseFloat(formData.iqdAmount) < 0) {
-            alert('يرجى إدخال مبالغ صحيحة');
+            showWarning('تحذير', 'يرجى إدخال مبالغ صحيحة');
             return;
         }
 
@@ -175,14 +187,14 @@ export default function Travelers({
                 const uniqueRef = generateUniqueReference('TRV');
                 setFormData(prev => ({ ...prev, receiptNumber: uniqueRef }));
 
-                alert('تم حفظ معاملة المسافر بنجاح!');
+                showSuccess('نجاح العملية', 'تم حفظ معاملة المسافر بنجاح!');
             } else {
                 const error = await response.json();
-                alert(error.message || 'حدث خطأ');
+                showError('خطأ', error.message || 'حدث خطأ');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('حدث خطأ في الشبكة');
+            showError('خطأ في الشبكة', 'حدث خطأ في الشبكة');
         } finally {
             setIsSubmitting(false);
         }
@@ -525,6 +537,17 @@ export default function Travelers({
                     </div>
                 </div>
             )}
+
+            {/* مودال الإشعارات */}
+            <NotificationModal
+                isOpen={notification.isOpen}
+                type={notification.type}
+                title={notification.title}
+                message={notification.message}
+                autoClose={notification.autoClose}
+                autoCloseDelay={notification.autoCloseDelay}
+                onClose={closeNotification}
+            />
         </EmployeeLayout>
     );
 }

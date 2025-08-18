@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import EmployeeLayout from '../../Layouts/EmployeeLayout';
 import { router } from '@inertiajs/react';
 import ThermalReceipt from '../../Components/ThermalReceipt';
+import NotificationModal from '../../Components/NotificationModal';
 import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
 import { useCentralCashBalance } from '../../Hooks/useCentralCashBalance';
+import { useNotification } from '../../Hooks/useNotification';
 
 export default function RafidainBank({
     user,
@@ -40,6 +42,16 @@ export default function RafidainBank({
         closeReceipt,
         createReceiptAndSave
     } = useThermalReceipt();
+
+    // استخدام hook الإشعارات
+    const {
+        notification,
+        showSuccess,
+        showError,
+        showWarning,
+        showInfo,
+        closeNotification
+    } = useNotification();
 
     // بيانات النموذج
     const [formData, setFormData] = useState({
@@ -144,7 +156,7 @@ export default function RafidainBank({
     // إرسال المعاملة
     const handleSubmit = async (action) => {
         if (!formData.amount || parseFloat(formData.amount) <= 0) {
-            alert('يرجى إدخال مبلغ صحيح');
+            showError('خطأ في المدخلات', 'يرجى إدخال مبلغ صحيح');
             return;
         }
 
@@ -186,16 +198,19 @@ export default function RafidainBank({
                 // إعادة تعيين النموذج
                 resetForm();
 
-                alert(`تم ${action === 'charge' ? 'الشحن' : 'الدفع'} بنجاح!`);
+                showSuccess(
+                    'تم إنجاز العملية بنجاح!',
+                    `تم ${action === 'charge' ? 'الشحن' : 'الدفع'} بنجاح وتحديث الرصيد`
+                );
                 return { success: true, result };
             } else {
                 const error = await response.json();
-                alert(error.message || 'حدث خطأ');
+                showError('فشل في العملية', error.message || 'حدث خطأ غير متوقع');
                 return { success: false, error };
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('حدث خطأ في الشبكة');
+            showError('خطأ في الشبكة', 'تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى');
             return { success: false, error };
         } finally {
             setIsSubmitting(false);
@@ -205,7 +220,7 @@ export default function RafidainBank({
     // حفظ وطباعة الفاتورة
     const handleSaveAndPrint = async () => {
         if (!formData.amount || parseFloat(formData.amount) <= 0) {
-            alert('يرجى إدخال مبلغ صحيح');
+            showError('خطأ في المدخلات', 'يرجى إدخال مبلغ صحيح قبل المتابعة');
             return;
         }
 
@@ -225,7 +240,10 @@ export default function RafidainBank({
         );
 
         if (result.success) {
-            // النجاح - الفاتورة ستظهر تلقائياً
+            showSuccess(
+                'تم إنجاز العملية بنجاح!',
+                'تم حفظ المعاملة وإعداد الفاتورة للطباعة'
+            );
         }
     };
 
@@ -712,6 +730,17 @@ export default function RafidainBank({
                         onPrint={printReceipt}
                     />
                 )}
+
+                {/* مودال الإشعارات */}
+                <NotificationModal
+                    isOpen={notification.isOpen}
+                    type={notification.type}
+                    title={notification.title}
+                    message={notification.message}
+                    autoClose={notification.autoClose}
+                    autoCloseDelay={notification.autoCloseDelay}
+                    onClose={closeNotification}
+                />
             </div>
         </EmployeeLayout>
     );

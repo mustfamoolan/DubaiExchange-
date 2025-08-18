@@ -8,6 +8,8 @@ import ReceiveExchangeThermalReceipt from '../../Components/ReceiveExchangeTherm
 import { useCentralCashBalance } from '../../Hooks/useCentralCashBalance';
 import { useCentralDollarBalance } from '../../Hooks/useCentralDollarBalance';
 import { generateUniqueReference } from '../../Utils/generateUniqueReference';
+import NotificationModal from '../../Components/NotificationModal';
+import { useNotification } from '../../Hooks/useNotification';
 
 export default function Exchange({
     user,
@@ -58,6 +60,16 @@ export default function Exchange({
         printReceipt: printExchangeReceipt,
         closeReceipt: closeExchangeReceipt
     } = useReceiveExchangeReceipt();
+
+    // استخدام hook الإشعارات
+    const {
+        notification,
+        showSuccess,
+        showError,
+        showWarning,
+        showInfo,
+        closeNotification
+    } = useNotification();
 
     const [formData, setFormData] = useState({
         invoiceNumber: '',
@@ -236,15 +248,15 @@ export default function Exchange({
                     opening_balance_usd: '0'
                 });
 
-                alert('تم إضافة العميل بنجاح!');
+                showSuccess('نجاح العملية', 'تم إضافة العميل بنجاح!');
             } else {
                 const error = await response.json();
                 console.error('خطأ في إنشاء العميل:', error);
-                alert(error.message || 'حدث خطأ في إضافة العميل');
+                showError('خطأ', error.message || 'حدث خطأ في إضافة العميل');
             }
         } catch (error) {
             console.error('خطأ في الشبكة:', error);
-            alert('حدث خطأ في الشبكة');
+            showError('خطأ في الشبكة', 'حدث خطأ في الشبكة');
         }
     };
 
@@ -389,12 +401,12 @@ export default function Exchange({
     // إرسال المعاملة
     const handleSubmit = async () => {
         if (!formData.amount || !formData.description) {
-            alert('يرجى ملء جميع الحقول المطلوبة');
+            showWarning('تحذير', 'يرجى ملء جميع الحقول المطلوبة');
             return;
         }
 
         if (parseFloat(formData.amount) <= 0) {
-            alert('يرجى إدخال مبلغ صحيح');
+            showWarning('تحذير', 'يرجى إدخال مبلغ صحيح');
             return;
         }
 
@@ -465,16 +477,16 @@ export default function Exchange({
                 const timeStr = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
                 setReferenceNumber(`EXC${dateStr}${timeStr}`);
 
-                alert('تم حفظ سند الصرف بنجاح!');
+                showSuccess('نجاح العملية', 'تم حفظ سند الصرف بنجاح!');
                 return result; // إرجاع النتيجة للاستخدام في createReceiptAndSave
             } else {
                 const error = await response.json();
-                alert(error.message || 'حدث خطأ');
+                showError('خطأ', error.message || 'حدث خطأ');
                 return { success: false, error: error.message };
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('حدث خطأ في الشبكة');
+            showError('خطأ في الشبكة', 'حدث خطأ في الشبكة');
             return { success: false, error: error.message };
         } finally {
             setIsSubmitting(false);
@@ -1089,6 +1101,17 @@ export default function Exchange({
                     </div>
                 </div>
             )}
+
+            {/* مودال الإشعارات */}
+            <NotificationModal
+                isOpen={notification.isOpen}
+                type={notification.type}
+                title={notification.title}
+                message={notification.message}
+                autoClose={notification.autoClose}
+                autoCloseDelay={notification.autoCloseDelay}
+                onClose={closeNotification}
+            />
         </EmployeeLayout>
     );
 }

@@ -5,6 +5,8 @@ import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
 import { useCentralCashBalance } from '../../Hooks/useCentralCashBalance';
 import { useCentralDollarBalance } from '../../Hooks/useCentralDollarBalance';
 import ThermalReceipt from '../../Components/ThermalReceipt';
+import NotificationModal from '../../Components/NotificationModal';
+import { useNotification } from '../../Hooks/useNotification';
 
 export default function Sell({
     user,
@@ -64,6 +66,16 @@ export default function Sell({
         printReceipt,
         closeReceipt
     } = useThermalReceipt();
+
+    // استخدام hook الإشعارات
+    const {
+        notification,
+        showSuccess,
+        showError,
+        showWarning,
+        showInfo,
+        closeNotification
+    } = useNotification();
 
     // تحديث التاريخ والوقت كل ثانية
     useEffect(() => {
@@ -136,7 +148,7 @@ export default function Sell({
     // إرسال معاملة البيع
     const handleSubmit = async () => {
         if (!formData.dollarAmount || parseFloat(formData.dollarAmount) <= 0) {
-            alert('يرجى إدخال مبلغ صحيح بالدولار');
+            showError('خطأ في المدخلات', 'يرجى إدخال مبلغ صحيح بالدولار');
             return;
         }
 
@@ -210,14 +222,14 @@ export default function Sell({
                     second: '2-digit'
                 }));
 
-                alert('تم إجراء عملية البيع بنجاح!');
+                showSuccess('تم إنجاز العملية بنجاح!', 'تم إجراء عملية البيع وتحديث الأرصدة بنجاح');
             } else {
                 const error = await response.json();
-                alert(error.message || 'حدث خطأ');
+                showError('فشل في العملية', error.message || 'حدث خطأ غير متوقع');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('حدث خطأ في الشبكة');
+            showError('خطأ في الشبكة', 'تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى');
         } finally {
             setIsSubmitting(false);
         }
@@ -229,7 +241,7 @@ export default function Sell({
 
     const handleSaveAndPrint = async () => {
         if (!formData.dollarAmount || parseFloat(formData.dollarAmount) <= 0) {
-            alert('يرجى إدخال مبلغ صحيح بالدولار');
+            showError('خطأ في المدخلات', 'يرجى إدخال مبلغ صحيح بالدولار قبل المتابعة');
             return;
         }
 
@@ -316,17 +328,17 @@ export default function Sell({
                         second: '2-digit'
                     }));
 
-                    alert('تم إجراء عملية البيع وإنشاء الفاتورة بنجاح!');
+                    showSuccess('تم إنجاز العملية بنجاح!', 'تم إجراء عملية البيع وإعداد الفاتورة للطباعة');
                 } else {
-                    alert('تم حفظ العملية لكن فشل في إنشاء الفاتورة');
+                    showWarning('تحذير', 'تم حفظ العملية لكن فشل في إنشاء الفاتورة');
                 }
             } else {
                 const error = await response.json();
-                alert(error.message || 'حدث خطأ');
+                showError('فشل في العملية', error.message || 'حدث خطأ غير متوقع');
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('حدث خطأ في الشبكة');
+            showError('خطأ في الشبكة', 'تعذر الاتصال بالخادم، يرجى المحاولة مرة أخرى');
         } finally {
             setIsSubmitting(false);
         }
@@ -588,6 +600,17 @@ export default function Sell({
                     onPrint={printReceipt}
                 />
             )}
+
+            {/* مودال الإشعارات */}
+            <NotificationModal
+                isOpen={notification.isOpen}
+                type={notification.type}
+                title={notification.title}
+                message={notification.message}
+                autoClose={notification.autoClose}
+                autoCloseDelay={notification.autoCloseDelay}
+                onClose={closeNotification}
+            />
         </EmployeeLayout>
     );
 }

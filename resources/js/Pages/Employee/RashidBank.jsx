@@ -4,6 +4,8 @@ import { router } from '@inertiajs/react';
 import ThermalReceipt from '../../Components/ThermalReceipt';
 import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
 import { useCentralCashBalance } from '../../Hooks/useCentralCashBalance';
+import NotificationModal from '../../Components/NotificationModal';
+import { useNotification } from '../../Hooks/useNotification';
 
 export default function RashidBank({
     user,
@@ -40,6 +42,16 @@ export default function RashidBank({
         closeReceipt,
         createReceiptAndSave
     } = useThermalReceipt();
+
+    // استخدام hook الإشعارات
+    const {
+        notification,
+        showSuccess,
+        showError,
+        showWarning,
+        showInfo,
+        closeNotification
+    } = useNotification();
 
     // بيانات النموذج
     const [formData, setFormData] = useState({
@@ -133,7 +145,7 @@ export default function RashidBank({
     // إرسال المعاملة
     const handleSubmit = async (action) => {
         if (!formData.amount || parseFloat(formData.amount) <= 0) {
-            alert('يرجى إدخال مبلغ صحيح');
+            showWarning('تحذير', 'يرجى إدخال مبلغ صحيح');
             return;
         }
 
@@ -175,16 +187,16 @@ export default function RashidBank({
                 // إعادة تعيين النموذج
                 resetForm();
 
-                alert(`تم ${action === 'charge' ? 'الشحن' : 'الدفع'} بنجاح!`);
+                showSuccess('نجاح العملية', `تم ${action === 'charge' ? 'الشحن' : 'الدفع'} بنجاح!`);
                 return { success: true, result };
             } else {
                 const error = await response.json();
-                alert(error.message || 'حدث خطأ');
+                showError('خطأ', error.message || 'حدث خطأ');
                 return { success: false, error };
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('حدث خطأ في الشبكة');
+            showError('خطأ في الشبكة', 'حدث خطأ في الشبكة');
             return { success: false, error };
         } finally {
             setIsSubmitting(false);
@@ -194,7 +206,7 @@ export default function RashidBank({
     // حفظ وطباعة الفاتورة
     const handleSaveAndPrint = async () => {
         if (!formData.amount || parseFloat(formData.amount) <= 0) {
-            alert('يرجى إدخال مبلغ صحيح');
+            showWarning('تحذير', 'يرجى إدخال مبلغ صحيح');
             return;
         }
 
@@ -693,6 +705,17 @@ export default function RashidBank({
                         onPrint={printReceipt}
                     />
                 )}
+
+                {/* مودال الإشعارات */}
+                <NotificationModal
+                    isOpen={notification.isOpen}
+                    type={notification.type}
+                    title={notification.title}
+                    message={notification.message}
+                    autoClose={notification.autoClose}
+                    autoCloseDelay={notification.autoCloseDelay}
+                    onClose={closeNotification}
+                />
             </div>
         </EmployeeLayout>
     );

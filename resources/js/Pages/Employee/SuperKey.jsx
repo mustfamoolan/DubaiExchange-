@@ -4,6 +4,8 @@ import { router } from '@inertiajs/react';
 import { useThermalReceipt } from '@/Hooks/useThermalReceipt';
 import ThermalReceipt from '@/Components/ThermalReceipt';
 import { useCentralCashBalance } from '@/Hooks/useCentralCashBalance';
+import NotificationModal from '@/Components/NotificationModal';
+import { useNotification } from '@/Hooks/useNotification';
 
 export default function SuperKey({
     user,
@@ -40,6 +42,16 @@ export default function SuperKey({
         closeReceipt,
         createReceiptAndSave
     } = useThermalReceipt();
+
+    // استخدام hook الإشعارات
+    const {
+        notification,
+        showSuccess,
+        showError,
+        showWarning,
+        showInfo,
+        closeNotification
+    } = useNotification();
 
     // بيانات النموذج
     const [formData, setFormData] = useState({
@@ -144,7 +156,7 @@ export default function SuperKey({
     // إرسال المعاملة (حفظ فقط)
     const handleSubmit = async (action) => {
         if (!formData.amount || parseFloat(formData.amount) <= 0) {
-            alert('يرجى إدخال مبلغ صحيح');
+            showWarning('تحذير', 'يرجى إدخال مبلغ صحيح');
             return;
         }
 
@@ -198,15 +210,15 @@ export default function SuperKey({
                 const timeStr = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
                 setReferenceNumber(`SUP${dateStr}${timeStr}`);
 
-                alert(result.message);
+                showSuccess('نجاح العملية', result.message);
                 return { success: true, result };
             } else {
-                alert(result.message || 'حدث خطأ أثناء العملية');
+                showError('خطأ', result.message || 'حدث خطأ أثناء العملية');
                 return { success: false, error: result.message };
             }
         } catch (error) {
             console.error('Error:', error);
-            alert('حدث خطأ في الاتصال بالخادم');
+            showError('خطأ في الاتصال', 'حدث خطأ في الاتصال بالخادم');
             return { success: false, error };
         } finally {
             setIsSubmitting(false);
@@ -216,7 +228,7 @@ export default function SuperKey({
     // حفظ وطباعة الفاتورة
     const handleSaveAndPrint = async () => {
         if (!formData.amount || parseFloat(formData.amount) <= 0) {
-            alert('يرجى إدخال مبلغ صحيح');
+            showWarning('تحذير', 'يرجى إدخال مبلغ صحيح');
             return;
         }
 
@@ -721,6 +733,17 @@ export default function SuperKey({
                 receiptData={receiptData}
                 onClose={closeReceipt}
                 onPrint={printReceipt}
+            />
+
+            {/* مودال الإشعارات */}
+            <NotificationModal
+                isOpen={notification.isOpen}
+                type={notification.type}
+                title={notification.title}
+                message={notification.message}
+                autoClose={notification.autoClose}
+                autoCloseDelay={notification.autoCloseDelay}
+                onClose={closeNotification}
             />
         </EmployeeLayout>
     );
