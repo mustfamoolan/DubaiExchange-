@@ -187,20 +187,7 @@ export default function Receive({
 
         // السماح بالأرقام والنقطة العشرية فقط
         if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
-            setFormData(prev => {
-                const newData = { ...prev, [field]: cleanValue };
-
-                // إذا تم تغيير العملة إلى دينار عراقي، جعل سعر الصرف 1 تلقائياً
-                if (field === 'currency' && cleanValue === 'دينار عراقي') {
-                    newData.exchange_rate = '1';
-                }
-                // إذا تم تغيير العملة إلى دولار أمريكي، جعل سعر الصرف افتراضي
-                if (field === 'currency' && cleanValue === 'دولار أمريكي') {
-                    newData.exchange_rate = '1'; // سعر الصرف 1 للدولار (سيأخذ المبلغ الأصلي)
-                }
-
-                return newData;
-            });
+            setFormData(prev => ({ ...prev, [field]: cleanValue }));
         }
     };
 
@@ -427,9 +414,9 @@ export default function Receive({
                 documentNumber: formData.documentNumber,
                 receivedFrom: formData.receivedFrom,
                 selectedCustomer: formData.selectedCustomer,
-                amount: formData.amount,
+                amount: removeCommas(formData.amount),
                 currency: formData.currency,
-                exchange_rate: formData.exchange_rate,
+                exchange_rate: removeCommas(formData.exchange_rate || '1'),
                 description: formData.description,
                 beneficiary: 'الصندوق النقدي', // قيمة ثابتة
                 notes: formData.notes
@@ -499,8 +486,18 @@ export default function Receive({
 
             return result; // إرجاع النتيجة للاستخدام في createReceiptAndSave
         } else {
-            const error = await response.json();
-            throw new Error(error.message || 'حدث خطأ');
+            // محاولة قراءة الخطأ كـ JSON، وإذا فشلت فاستخدم النص
+            let errorMessage = 'حدث خطأ';
+            try {
+                const error = await response.json();
+                errorMessage = error.message || 'حدث خطأ';
+            } catch (jsonError) {
+                // إذا فشل في قراءة JSON، اقرأ كنص
+                const errorText = await response.text();
+                console.error('خطأ في الاستجابة:', errorText);
+                errorMessage = 'خطأ في الخادم';
+            }
+            throw new Error(errorMessage);
         }
     };
 
@@ -538,9 +535,9 @@ export default function Receive({
                     documentNumber: formData.documentNumber,
                     receivedFrom: formData.receivedFrom,
                     selectedCustomer: formData.selectedCustomer,
-                    amount: formData.amount,
+                    amount: removeCommas(formData.amount),
                     currency: formData.currency,
-                    exchange_rate: formData.exchange_rate,
+                    exchange_rate: removeCommas(formData.exchange_rate || '1'),
                     description: formData.description,
                     beneficiary: 'الصندوق النقدي', // قيمة ثابتة
                     notes: formData.notes
@@ -608,9 +605,19 @@ export default function Receive({
                 alert('تم حفظ سند القبض بنجاح!');
                 return result; // إرجاع النتيجة للاستخدام في createReceiptAndSave
             } else {
-                const error = await response.json();
-                alert(error.message || 'حدث خطأ');
-                return { success: false, error: error.message };
+                // محاولة قراءة الخطأ كـ JSON، وإذا فشلت فاستخدم النص
+                let errorMessage = 'حدث خطأ';
+                try {
+                    const error = await response.json();
+                    errorMessage = error.message || 'حدث خطأ';
+                } catch (jsonError) {
+                    // إذا فشل في قراءة JSON، اقرأ كنص
+                    const errorText = await response.text();
+                    console.error('خطأ في الاستجابة:', errorText);
+                    errorMessage = 'خطأ في الخادم';
+                }
+                alert(errorMessage);
+                return { success: false, error: errorMessage };
             }
         } catch (error) {
             console.error('Error:', error);
