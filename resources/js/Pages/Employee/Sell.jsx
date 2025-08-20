@@ -44,6 +44,12 @@ export default function Sell({
         fetchCurrentDollarBalance
     } = useCentralDollarBalance(currentCentralDollarBalance);
 
+    // تشخيص القيم الأولية
+    console.log('Initial Values:');
+    console.log('currentCentralDollarBalance prop:', currentCentralDollarBalance);
+    console.log('centralDollarBalance from hook:', centralDollarBalance);
+    console.log('Type of centralDollarBalance:', typeof centralDollarBalance);
+
     const [formData, setFormData] = useState({
         documentNumber: '',
         currentTime: new Date().toLocaleString('ar-EG'),
@@ -174,8 +180,8 @@ export default function Sell({
 
     // حساب المبلغ بالدينار العراقي
     const getIQDAmount = () => {
-        const dollarAmount = parseFloat(formData.dollarAmount) || 0;
-        const exchangeRate = parseFloat(formData.exchangeRate) || 0;
+        const dollarAmount = parseFloat(removeCommas(formData.dollarAmount)) || 0;
+        const exchangeRate = parseFloat(removeCommas(formData.exchangeRate)) || 0;
         return dollarAmount * exchangeRate;
     };
 
@@ -186,13 +192,18 @@ export default function Sell({
 
     // التحقق من كفاية الرصيد للدولار
     const checkSufficientDollarBalance = () => {
-        const dollarAmount = parseFloat(formData.dollarAmount) || 0;
+        const dollarAmount = parseFloat(removeCommas(formData.dollarAmount)) || 0;
+        console.log('checkSufficientDollarBalance - Dollar Amount:', dollarAmount);
+        console.log('checkSufficientDollarBalance - Central Dollar Balance:', centralDollarBalance);
+        console.log('checkSufficientDollarBalance - Type of centralDollarBalance:', typeof centralDollarBalance);
+        console.log('checkSufficientDollarBalance - Comparison result:', dollarAmount <= centralDollarBalance);
+        console.log('checkSufficientDollarBalance - currentCentralDollarBalance prop:', currentCentralDollarBalance);
         return dollarAmount <= centralDollarBalance;
     };
 
     // الحصول على رسالة عدم كفاية الرصيد
     const getInsufficientBalanceMessage = () => {
-        const dollarAmount = parseFloat(formData.dollarAmount) || 0;
+        const dollarAmount = parseFloat(removeCommas(formData.dollarAmount)) || 0;
         if (dollarAmount > centralDollarBalance) {
             return `الرصيد غير كافي. المطلوب: $${dollarAmount.toLocaleString()}، المتاح: $${Math.floor(centralDollarBalance).toLocaleString()}`;
         }
@@ -201,13 +212,16 @@ export default function Sell({
 
     // إرسال معاملة البيع
     const handleSubmit = async () => {
-        if (!formData.dollarAmount || parseFloat(formData.dollarAmount) <= 0) {
+        if (!formData.dollarAmount || parseFloat(removeCommas(formData.dollarAmount)) <= 0) {
             showError('خطأ في المدخلات', 'يرجى إدخال مبلغ صحيح بالدولار');
             return;
         }
 
         // التحقق من كفاية الرصيد المركزي للدولار
-        const dollarAmount = parseFloat(formData.dollarAmount);
+        const dollarAmount = parseFloat(removeCommas(formData.dollarAmount));
+        console.log('Dollar Amount:', dollarAmount);
+        console.log('Central Dollar Balance:', centralDollarBalance);
+
         if (dollarAmount > centralDollarBalance) {
             showError(
                 'رصيد غير كافي',
@@ -219,6 +233,13 @@ export default function Sell({
         setIsSubmitting(true);
 
         try {
+            console.log('Sending request to server with data:', {
+                dollarAmount: removeCommas(formData.dollarAmount),
+                exchangeRate: removeCommas(formData.exchangeRate),
+                documentNumber: formData.documentNumber,
+                notes: formData.notes
+            });
+
             const response = await fetch('/employee/sell', {
                 method: 'POST',
                 headers: {
@@ -226,12 +247,15 @@ export default function Sell({
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 },
                 body: JSON.stringify({
-                    dollarAmount: formData.dollarAmount,
-                    exchangeRate: formData.exchangeRate,
+                    dollarAmount: removeCommas(formData.dollarAmount),
+                    exchangeRate: removeCommas(formData.exchangeRate),
                     documentNumber: formData.documentNumber,
                     notes: formData.notes
                 })
             });
+
+            console.log('Server response status:', response.status);
+            console.log('Server response ok:', response.ok);
 
             if (response.ok) {
                 const result = await response.json();
@@ -288,8 +312,20 @@ export default function Sell({
 
                 showSuccess('تم إنجاز العملية بنجاح!', 'تم إجراء عملية البيع وتحديث الأرصدة بنجاح');
             } else {
-                const error = await response.json();
-                showError('فشل في العملية', error.message || 'حدث خطأ غير متوقع');
+                console.log('Server response not ok, status:', response.status);
+                // محاولة قراءة الخطأ كـ JSON، وإذا فشلت فاستخدم النص
+                let errorMessage = 'حدث خطأ غير متوقع';
+                try {
+                    const error = await response.json();
+                    console.log('Server error response:', error);
+                    errorMessage = error.message || 'حدث خطأ غير متوقع';
+                } catch (jsonError) {
+                    // إذا فشل في قراءة JSON، اقرأ كنص
+                    const errorText = await response.text();
+                    console.error('خطأ في الاستجابة:', errorText);
+                    errorMessage = 'خطأ في الخادم';
+                }
+                showError('فشل في العملية', errorMessage);
             }
         } catch (error) {
             console.error('Error:', error);
@@ -304,13 +340,16 @@ export default function Sell({
     };
 
     const handleSaveAndPrint = async () => {
-        if (!formData.dollarAmount || parseFloat(formData.dollarAmount) <= 0) {
+        if (!formData.dollarAmount || parseFloat(removeCommas(formData.dollarAmount)) <= 0) {
             showError('خطأ في المدخلات', 'يرجى إدخال مبلغ صحيح بالدولار قبل المتابعة');
             return;
         }
 
         // التحقق من كفاية الرصيد المركزي للدولار
-        const dollarAmount = parseFloat(formData.dollarAmount);
+        const dollarAmount = parseFloat(removeCommas(formData.dollarAmount));
+        console.log('SaveAndPrint - Dollar Amount:', dollarAmount);
+        console.log('SaveAndPrint - Central Dollar Balance:', centralDollarBalance);
+
         if (dollarAmount > centralDollarBalance) {
             showError(
                 'رصيد غير كافي',
@@ -322,6 +361,13 @@ export default function Sell({
         setIsSubmitting(true);
 
         try {
+            console.log('SaveAndPrint - Sending request to /employee/sell with data:', {
+                dollarAmount: removeCommas(formData.dollarAmount),
+                exchangeRate: removeCommas(formData.exchangeRate),
+                documentNumber: formData.documentNumber,
+                notes: formData.notes
+            });
+
             // حفظ المعاملة أولاً
             const response = await fetch('/employee/sell', {
                 method: 'POST',
@@ -330,15 +376,19 @@ export default function Sell({
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                 },
                 body: JSON.stringify({
-                    dollarAmount: formData.dollarAmount,
-                    exchangeRate: formData.exchangeRate,
+                    dollarAmount: removeCommas(formData.dollarAmount),
+                    exchangeRate: removeCommas(formData.exchangeRate),
                     documentNumber: formData.documentNumber,
                     notes: formData.notes
                 })
             });
 
+            console.log('SaveAndPrint - Server response status:', response.status);
+            console.log('SaveAndPrint - Server response ok:', response.ok);
+
             if (response.ok) {
                 const result = await response.json();
+                console.log('SaveAndPrint - Server response data:', result);
 
                 // تحديث الأرصدة
                 setDollarBalance(result.new_dollar_balance);
@@ -407,7 +457,9 @@ export default function Sell({
                     showWarning('تحذير', 'تم حفظ العملية لكن فشل في إنشاء الفاتورة');
                 }
             } else {
+                console.log('SaveAndPrint - Server response not ok, status:', response.status);
                 const error = await response.json();
+                console.log('SaveAndPrint - Server error response:', error);
                 showError('فشل في العملية', error.message || 'حدث خطأ غير متوقع');
             }
         } catch (error) {

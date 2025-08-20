@@ -138,17 +138,9 @@ class SellController extends Controller
         DB::beginTransaction();
 
         try {
-            // Get current balance from opening balance
-            $openingBalance = OpeningBalance::where('user_id', $sessionUser['id'])->first();
-            $dollarBalance = $openingBalance ? $openingBalance->usd_cash : 0;
-            $exchangeRateOpening = $openingBalance ? $openingBalance->exchange_rate : 1500;
-
-            // Calculate total dollars sold (الدولار المباع مسبقاً)
-            $totalDollarsSold = SellTransaction::where('user_id', $sessionUser['id'])
-                ->sum('dollar_amount');
-
-            // Calculate current dollar balance (الرصيد الحالي بالدولار)
-            $currentDollarBalance = $dollarBalance - $totalDollarsSold;
+            // استخدام نفس منطق حساب الرصيد المستخدم في العرض
+            // الحصول على الرصيد المركزي للدولار من نفس المصدر
+            $currentDollarBalance = DollarBalanceService::getCurrentBalance($sessionUser['id']);
 
             // التحقق من توفر الرصيد الكافي
             $dollarAmount = $request->dollarAmount;
