@@ -129,8 +129,47 @@ export default function Sell({
     //     }
     // }, [formData.dollarAmount, formData.exchangeRate]);
 
+    // دوال تنسيق الأرقام بالفواصل
+    const formatNumberWithCommas = (value) => {
+        // إزالة كل شيء ما عدا الأرقام والنقطة العشرية
+        const cleanValue = value.toString().replace(/[^0-9.]/g, '');
+
+        // التحقق من عدم وجود أكثر من نقطة عشرية واحدة
+        const parts = cleanValue.split('.');
+        if (parts.length > 2) {
+            return parts[0] + '.' + parts.slice(1).join('');
+        }
+
+        // إزالة الأصفار الزائدة من الجزء العشري
+        if (parts[1]) {
+            parts[1] = parts[1].replace(/0+$/, ''); // إزالة الأصفار من النهاية
+            if (parts[1] === '') {
+                parts.pop(); // إزالة النقطة إذا لم يعد هناك جزء عشري
+            }
+        }
+
+        // إضافة الفواصل للجزء الصحيح
+        if (parts[0]) {
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+
+        return parts.join('.');
+    };
+
+    const removeCommas = (value) => {
+        return value.toString().replace(/,/g, '');
+    };
+
     const handleInputChange = (field, value) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        // إزالة الفواصل قبل الحفظ
+        const cleanValue = removeCommas(value);
+        setFormData(prev => ({ ...prev, [field]: cleanValue }));
+    };
+
+    // معالج خاص للمدخلات الرقمية مع الفواصل
+    const handleNumberInputChange = (field, value) => {
+        const cleanValue = removeCommas(value);
+        setFormData(prev => ({ ...prev, [field]: cleanValue }));
     };
 
     // حساب المبلغ بالدينار العراقي
@@ -145,10 +184,35 @@ export default function Sell({
         return getIQDAmount();
     };
 
+    // التحقق من كفاية الرصيد للدولار
+    const checkSufficientDollarBalance = () => {
+        const dollarAmount = parseFloat(formData.dollarAmount) || 0;
+        return dollarAmount <= centralDollarBalance;
+    };
+
+    // الحصول على رسالة عدم كفاية الرصيد
+    const getInsufficientBalanceMessage = () => {
+        const dollarAmount = parseFloat(formData.dollarAmount) || 0;
+        if (dollarAmount > centralDollarBalance) {
+            return `الرصيد غير كافي. المطلوب: $${dollarAmount.toLocaleString()}، المتاح: $${Math.floor(centralDollarBalance).toLocaleString()}`;
+        }
+        return null;
+    };
+
     // إرسال معاملة البيع
     const handleSubmit = async () => {
         if (!formData.dollarAmount || parseFloat(formData.dollarAmount) <= 0) {
             showError('خطأ في المدخلات', 'يرجى إدخال مبلغ صحيح بالدولار');
+            return;
+        }
+
+        // التحقق من كفاية الرصيد المركزي للدولار
+        const dollarAmount = parseFloat(formData.dollarAmount);
+        if (dollarAmount > centralDollarBalance) {
+            showError(
+                'رصيد غير كافي',
+                `الرصيد المركزي للدولار غير كافي. المطلوب: $${dollarAmount.toLocaleString()}، المتاح: $${Math.floor(centralDollarBalance).toLocaleString()}`
+            );
             return;
         }
 
@@ -242,6 +306,16 @@ export default function Sell({
     const handleSaveAndPrint = async () => {
         if (!formData.dollarAmount || parseFloat(formData.dollarAmount) <= 0) {
             showError('خطأ في المدخلات', 'يرجى إدخال مبلغ صحيح بالدولار قبل المتابعة');
+            return;
+        }
+
+        // التحقق من كفاية الرصيد المركزي للدولار
+        const dollarAmount = parseFloat(formData.dollarAmount);
+        if (dollarAmount > centralDollarBalance) {
+            showError(
+                'رصيد غير كافي',
+                `الرصيد المركزي للدولار غير كافي. المطلوب: $${dollarAmount.toLocaleString()}، المتاح: $${Math.floor(centralDollarBalance).toLocaleString()}`
+            );
             return;
         }
 
@@ -513,12 +587,21 @@ export default function Sell({
                                         المبلغ بالدولار:
                                     </label>
                                     <input
-                                        type="number"
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-right"
+                                        type="text"
+                                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-right ${
+                                            formData.dollarAmount && !checkSufficientDollarBalance()
+                                                ? 'border-red-500 bg-red-50'
+                                                : 'border-gray-300'
+                                        }`}
                                         placeholder="المبلغ بالدولار"
-                                        value={formData.dollarAmount}
-                                        onChange={(e) => handleInputChange('dollarAmount', e.target.value)}
+                                        value={formData.dollarAmount ? formatNumberWithCommas(formData.dollarAmount) : ''}
+                                        onChange={(e) => handleNumberInputChange('dollarAmount', e.target.value)}
                                     />
+                                    {formData.dollarAmount && !checkSufficientDollarBalance() && (
+                                        <p className="text-xs text-red-600 mt-1 text-right">
+                                            {getInsufficientBalanceMessage()}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div>
@@ -526,10 +609,10 @@ export default function Sell({
                                         سعر الصرف:
                                     </label>
                                     <input
-                                        type="number"
+                                        type="text"
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-right"
-                                        value={formData.exchangeRate}
-                                        onChange={(e) => handleInputChange('exchangeRate', e.target.value)}
+                                        value={formData.exchangeRate ? formatNumberWithCommas(formData.exchangeRate) : ''}
+                                        onChange={(e) => handleNumberInputChange('exchangeRate', e.target.value)}
                                         placeholder="سعر الصرف"
                                     />
                                     <p className="text-xs text-gray-500 mt-1 text-right">
@@ -572,7 +655,7 @@ export default function Sell({
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <button
                                     onClick={handleSaveAndPrint}
-                                    disabled={isSubmitting || !formData.dollarAmount || parseFloat(formData.dollarAmount) > dollarBalance}
+                                    disabled={isSubmitting || !formData.dollarAmount || !checkSufficientDollarBalance()}
                                     className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-xl transition-colors duration-200 flex items-center justify-center"
                                 >
                                     <span className="ml-2">📄</span>
@@ -580,7 +663,7 @@ export default function Sell({
                                 </button>
                                 <button
                                     onClick={handleSave}
-                                    disabled={isSubmitting || !formData.dollarAmount || parseFloat(formData.dollarAmount) > dollarBalance}
+                                    disabled={isSubmitting || !formData.dollarAmount || !checkSufficientDollarBalance()}
                                     className="bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-xl transition-colors duration-200 flex items-center justify-center"
                                 >
                                     <span className="ml-2">💾</span>

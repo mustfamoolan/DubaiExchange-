@@ -109,6 +109,44 @@ export default function SuperKey({
     //     }
     // }, [formData.amount]);
 
+    // تنسيق الأرقام مع الفواصل وإزالة الأصفار الزائدة
+    const formatNumberWithCommas = (value) => {
+        if (!value) return '';
+
+        // تنظيف القيمة من أي فواصل موجودة مسبقاً
+        const cleanValue = value.toString().replace(/,/g, '');
+
+        // التحقق من صحة الرقم
+        if (isNaN(cleanValue) || cleanValue === '') return value;
+
+        // تحويل إلى رقم وإزالة الأصفار الزائدة
+        const num = parseFloat(cleanValue);
+
+        // تحويل الرقم إلى string وإزالة الأصفار الزائدة
+        let formattedNumber = num.toString();
+
+        // إضافة الفواصل للجزء الصحيح فقط
+        const parts = formattedNumber.split('.');
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+        return parts.join('.');
+    };
+
+    // إزالة الفواصل من الرقم
+    const removeCommas = (value) => {
+        return value.toString().replace(/,/g, '');
+    };
+
+    // معالجة تغيير قيم الحقول الرقمية
+    const handleNumberInputChange = (field, value) => {
+        const cleanValue = removeCommas(value);
+
+        // السماح بالأرقام والنقطة العشرية فقط
+        if (cleanValue === '' || /^\d*\.?\d*$/.test(cleanValue)) {
+            setFormData(prev => ({ ...prev, [field]: cleanValue }));
+        }
+    };
+
     // تحديث قيم النموذج
     const handleInputChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -461,11 +499,11 @@ export default function SuperKey({
                                         المبلغ:
                                     </label>
                                     <input
-                                        type="number"
+                                        type="text"
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-right"
                                         placeholder="المبلغ"
-                                        value={formData.amount}
-                                        onChange={(e) => handleInputChange('amount', e.target.value)}
+                                        value={formData.amount ? formatNumberWithCommas(formData.amount) : ''}
+                                        onChange={(e) => handleNumberInputChange('amount', e.target.value)}
                                     />
                                 </div>
 
@@ -474,11 +512,11 @@ export default function SuperKey({
                                         العمولة:
                                     </label>
                                     <input
-                                        type="number"
+                                        type="text"
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-transparent text-right"
                                         placeholder="العمولة"
-                                        value={formData.commission}
-                                        onChange={(e) => handleInputChange('commission', e.target.value)}
+                                        value={formData.commission ? formatNumberWithCommas(formData.commission) : ''}
+                                        onChange={(e) => handleNumberInputChange('commission', e.target.value)}
                                     />
                                 </div>
                             </div>

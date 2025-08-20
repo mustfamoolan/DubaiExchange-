@@ -117,6 +117,16 @@ export default function Buy({
         setFormData(prev => ({ ...prev, documentNumber: referenceNumber }));
     }, [referenceNumber]);
 
+    // مراقبة التغييرات في الرصيد والمبالغ للتحقق الفوري
+    useEffect(() => {
+        // فقط لإجبار React على إعادة التحقق من الدوال
+        const dollarAmount = parseFloat(formData.dollarAmount || 0);
+        const exchangeRate = parseFloat(formData.exchangeRate || 0);
+        const totalCost = dollarAmount * exchangeRate;
+
+        // لا نحتاج لعمل شيء، فقط لإجبار React على إعادة الحساب
+    }, [formData.dollarAmount, formData.exchangeRate, centralCashBalance]);
+
     // حساب العمولة التلقائي - تم إلغاؤه ليبدأ بصفر
     // useEffect(() => {
     //     if (formData.dollarAmount && formData.exchangeRate) {
@@ -130,8 +140,60 @@ export default function Buy({
     //     }
     // }, [formData.dollarAmount, formData.exchangeRate]);
 
+    // دوال تنسيق الأرقام بالفواصل
+    const formatNumberWithCommas = (value) => {
+        // إزالة كل شيء ما عدا الأرقام والنقطة العشرية
+        const cleanValue = value.toString().replace(/[^0-9.]/g, '');
+
+        // التحقق من عدم وجود أكثر من نقطة عشرية واحدة
+        const parts = cleanValue.split('.');
+        if (parts.length > 2) {
+            return parts[0] + '.' + parts.slice(1).join('');
+        }
+
+        // إزالة الأصفار الزائدة من الجزء العشري
+        if (parts[1]) {
+            parts[1] = parts[1].replace(/0+$/, ''); // إزالة الأصفار من النهاية
+            if (parts[1] === '') {
+                parts.pop(); // إزالة النقطة إذا لم يعد هناك جزء عشري
+            }
+        }
+
+        // إضافة الفواصل للجزء الصحيح
+        if (parts[0]) {
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+
+        return parts.join('.');
+    };
+
+    const removeCommas = (value) => {
+        return value.toString().replace(/,/g, '');
+    };
+
     const handleInputChange = (field, value) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        // إزالة الفواصل قبل الحفظ
+        const cleanValue = removeCommas(value);
+        setFormData(prev => ({ ...prev, [field]: cleanValue }));
+
+        // إعادة تحديث الواجهة فوراً عند تغيير المبلغ أو سعر الصرف
+        if (field === 'dollarAmount' || field === 'exchangeRate') {
+            // إجبار React على إعادة الرسم
+            setTimeout(() => {
+                // لا نحتاج لعمل شيء، فقط لإجبار React على إعادة التحقق
+            }, 0);
+        }
+    };
+
+    // معالج خاص للمدخلات الرقمية مع الفواصل
+    const handleNumberInputChange = (field, value) => {
+        const cleanValue = removeCommas(value);
+        setFormData(prev => ({ ...prev, [field]: cleanValue }));
+
+        // إعادة تحديث الواجهة فوراً عند تغيير المبلغ أو سعر الصرف
+        if (field === 'dollarAmount' || field === 'exchangeRate') {
+            setTimeout(() => {}, 0);
+        }
     };
 
     // حساب المبلغ بالدينار العراقي
@@ -146,20 +208,113 @@ export default function Buy({
         return getIQDAmount();
     };
 
-    // إرسال معاملة الشراء
-    const handleSubmit = async () => {
-        if (!formData.dollarAmount || parseFloat(formData.dollarAmount) <= 0) {
-            showError('خطأ في المدخلات', 'يرجى إدخال مبلغ صحيح بالدولار');
-            return;
+    // التحقق من كفاية الرصيد النقدي المركزي - بدقة عالية جداً
+    const checkSufficientCashBalance = () => {
+        // التحقق من وجود مبلغ صحيح مع معالجة أفضل للقيم
+        const dollarAmountStr = String(formData.dollarAmount || '').trim();
+        const exchangeRateStr = String(formData.exchangeRate || '').trim();
+
+        const dollarAmount = parseFloat(dollarAmountStr);
+        const exchangeRate = parseFloat(exchangeRateStr);
+
+        // طباعة القيم للتحقق (يمكن إزالتها لاحقاً)
+        console.log('=== التحقق من الرصيد ===');
+        console.log('مبلغ الدولار:', dollarAmountStr, '→', dollarAmount);
+        console.log('سعر الصرف:', exchangeRateStr, '→', exchangeRate);
+        console.log('الرصيد النقدي المركزي:', centralCashBalance);
+
+        // إذا لم يكن هناك مبلغ أو المبلغ صفر أو سالب، نعتبر التحقق ناجح (للسماح بالإدخال)
+        if (!dollarAmountStr || isNaN(dollarAmount) || dollarAmount <= 0) {
+            console.log('النتيجة: لا يوجد مبلغ صحيح - السماح بالإدخال');
+            return true;
         }
 
-        // التحقق من كفاية الرصيد النقدي المركزي (لأننا ندفع نقداً لشراء الدولارات)
-        const totalCost = getTotalIQD();
-        if (totalCost > centralCashBalance) {
-            showError(
-                'رصيد غير كافي',
-                `الرصيد النقدي المركزي غير كافي. المطلوب: ${Math.floor(totalCost).toLocaleString()} د.ع، المتاح: ${Math.floor(centralCashBalance).toLocaleString()} د.ع`
-            );
+        // إذا لم يكن هناك سعر صرف صحيح، نعتبر التحقق ناجح
+        if (!exchangeRateStr || isNaN(exchangeRate) || exchangeRate <= 0) {
+            console.log('النتيجة: لا يوجد سعر صرف صحيح - السماح بالإدخال');
+            return true;
+        }
+
+        // حساب التكلفة الإجمالية بدقة تامة
+        const totalCost = Math.round(dollarAmount * exchangeRate);
+        const availableBalance = Math.round(centralCashBalance);
+
+        console.log('التكلفة المطلوبة:', totalCost);
+        console.log('الرصيد المتاح:', availableBalance);
+        console.log('النتيجة:', totalCost <= availableBalance ? 'كافي' : 'غير كافي');
+
+        // التحقق الدقيق: إذا كان المطلوب أكبر من المتاح حتى لو بدينار واحد
+        return totalCost <= availableBalance;
+    };
+
+    // الحصول على رسالة عدم كفاية الرصيد - محسنة ودقيقة
+    const getInsufficientBalanceMessage = () => {
+        const dollarAmountStr = String(formData.dollarAmount || '').trim();
+        const exchangeRateStr = String(formData.exchangeRate || '').trim();
+
+        const dollarAmount = parseFloat(dollarAmountStr);
+        const exchangeRate = parseFloat(exchangeRateStr);
+
+        // التحقق من صحة البيانات المدخلة
+        if (!dollarAmountStr || isNaN(dollarAmount) || dollarAmount <= 0) {
+            return null;
+        }
+
+        if (!exchangeRateStr || isNaN(exchangeRate) || exchangeRate <= 0) {
+            return null;
+        }
+
+        const totalCost = Math.round(dollarAmount * exchangeRate);
+        const availableBalance = Math.round(centralCashBalance);
+
+        if (totalCost > availableBalance) {
+            const shortage = totalCost - availableBalance;
+            return `الرصيد النقدي غير كافي. المطلوب: ${totalCost.toLocaleString()} د.ع، المتاح: ${availableBalance.toLocaleString()} د.ع، النقص: ${shortage.toLocaleString()} د.ع`;
+        }
+        return null;
+    };
+
+    // التحقق الشامل من إمكانية إجراء العملية - دقيق جداً
+    const canProceedWithTransaction = () => {
+        const dollarAmountStr = String(formData.dollarAmount || '').trim();
+        const exchangeRateStr = String(formData.exchangeRate || '').trim();
+
+        const dollarAmount = parseFloat(dollarAmountStr);
+        const exchangeRate = parseFloat(exchangeRateStr);
+
+        // التحقق من صحة البيانات المدخلة
+        if (!dollarAmountStr || isNaN(dollarAmount) || dollarAmount <= 0) {
+            return false;
+        }
+
+        if (!exchangeRateStr || isNaN(exchangeRate) || exchangeRate <= 0) {
+            return false;
+        }
+
+        // التحقق من كفاية الرصيد بدقة
+        const totalCost = Math.round(dollarAmount * exchangeRate);
+        const availableBalance = Math.round(centralCashBalance);
+
+        return totalCost <= availableBalance;
+    };    // إرسال معاملة الشراء
+    const handleSubmit = async () => {
+        // استخدام التحقق الشامل الجديد
+        if (!canProceedWithTransaction()) {
+            if (!formData.dollarAmount || parseFloat(formData.dollarAmount) <= 0) {
+                showError('خطأ في المدخلات', 'يرجى إدخال مبلغ صحيح بالدولار');
+            } else if (!formData.exchangeRate || parseFloat(formData.exchangeRate) <= 0) {
+                showError('خطأ في المدخلات', 'يرجى إدخال سعر صرف صحيح');
+            } else {
+                const dollarAmount = parseFloat(formData.dollarAmount);
+                const exchangeRate = parseFloat(formData.exchangeRate);
+                const totalCost = Math.round(dollarAmount * exchangeRate);
+                const availableBalance = Math.round(centralCashBalance);
+                const shortage = totalCost - availableBalance;
+                showError(
+                    'رصيد غير كافي',
+                    `الرصيد النقدي المركزي غير كافي. المطلوب: ${totalCost.toLocaleString()} د.ع، المتاح: ${availableBalance.toLocaleString()} د.ع، النقص: ${shortage.toLocaleString()} د.ع`
+                );
+            }
             return;
         }
 
@@ -252,18 +407,23 @@ export default function Buy({
     };
 
     const handleSaveAndPrint = async () => {
-        if (!formData.dollarAmount || parseFloat(formData.dollarAmount) <= 0) {
-            showError('خطأ في المدخلات', 'يرجى إدخال مبلغ صحيح بالدولار قبل المتابعة');
-            return;
-        }
-
-        // التحقق من كفاية الرصيد النقدي المركزي (لأننا ندفع نقداً لشراء الدولارات)
-        const totalCost = getTotalIQD();
-        if (totalCost > centralCashBalance) {
-            showError(
-                'رصيد غير كافي',
-                `الرصيد النقدي المركزي غير كافي. المطلوب: ${Math.floor(totalCost).toLocaleString()} د.ع، المتاح: ${Math.floor(centralCashBalance).toLocaleString()} د.ع`
-            );
+        // استخدام التحقق الشامل الجديد
+        if (!canProceedWithTransaction()) {
+            if (!formData.dollarAmount || parseFloat(formData.dollarAmount) <= 0) {
+                showError('خطأ في المدخلات', 'يرجى إدخال مبلغ صحيح بالدولار قبل المتابعة');
+            } else if (!formData.exchangeRate || parseFloat(formData.exchangeRate) <= 0) {
+                showError('خطأ في المدخلات', 'يرجى إدخال سعر صرف صحيح');
+            } else {
+                const dollarAmount = parseFloat(formData.dollarAmount);
+                const exchangeRate = parseFloat(formData.exchangeRate);
+                const totalCost = Math.round(dollarAmount * exchangeRate);
+                const availableBalance = Math.round(centralCashBalance);
+                const shortage = totalCost - availableBalance;
+                showError(
+                    'رصيد غير كافي',
+                    `الرصيد النقدي المركزي غير كافي. المطلوب: ${totalCost.toLocaleString()} د.ع، المتاح: ${availableBalance.toLocaleString()} د.ع، النقص: ${shortage.toLocaleString()} د.ع`
+                );
+            }
             return;
         }
 
@@ -530,16 +690,19 @@ export default function Buy({
                                         المبلغ بالدولار:
                                     </label>
                                     <input
-                                        type="number"
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-right"
+                                        type="text"
+                                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-right ${
+                                            getInsufficientBalanceMessage()
+                                                ? 'border-red-500 bg-red-50'
+                                                : 'border-gray-300'
+                                        }`}
                                         placeholder="المبلغ بالدولار"
-                                        value={formData.dollarAmount}
-                                        max={dollarBalance}
-                                        onChange={(e) => handleInputChange('dollarAmount', e.target.value)}
+                                        value={formData.dollarAmount ? formatNumberWithCommas(formData.dollarAmount) : ''}
+                                        onChange={(e) => handleNumberInputChange('dollarAmount', e.target.value)}
                                     />
-                                    {formData.dollarAmount && getTotalIQD() > centralCashBalance && (
-                                        <p className="text-sm text-red-600 mt-1">
-                                            الرصيد النقدي المركزي غير كافي. المطلوب: {Math.floor(getTotalIQD()).toLocaleString()} د.ع، المتاح: {Math.floor(centralCashBalance).toLocaleString()} د.ع
+                                    {getInsufficientBalanceMessage() && (
+                                        <p className="text-xs text-red-600 mt-1 text-right font-medium">
+                                            {getInsufficientBalanceMessage()}
                                         </p>
                                     )}
                                 </div>
@@ -549,11 +712,11 @@ export default function Buy({
                                         سعر الصرف:
                                     </label>
                                     <input
-                                        type="number"
+                                        type="text"
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-right"
-                                        placeholder={`السعر الافتراضي: ${Math.floor(exchangeRate)}`}
-                                        value={Math.floor(formData.exchangeRate)}
-                                        onChange={(e) => handleInputChange('exchangeRate', e.target.value)}
+                                        placeholder={`السعر الافتراضي: ${Math.floor(exchangeRate).toLocaleString()}`}
+                                        value={formData.exchangeRate ? formatNumberWithCommas(formData.exchangeRate) : ''}
+                                        onChange={(e) => handleNumberInputChange('exchangeRate', e.target.value)}
                                     />
                                 </div>
                             </div>
@@ -592,7 +755,7 @@ export default function Buy({
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <button
                                     onClick={handleSaveAndPrint}
-                                    disabled={isSubmitting || !formData.dollarAmount || getTotalIQD() > centralCashBalance}
+                                    disabled={isSubmitting || !canProceedWithTransaction()}
                                     className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-xl transition-colors duration-200 flex items-center justify-center"
                                 >
                                     <span className="ml-2">📄</span>
@@ -600,7 +763,7 @@ export default function Buy({
                                 </button>
                                 <button
                                     onClick={handleSave}
-                                    disabled={isSubmitting || !formData.dollarAmount || getTotalIQD() > centralCashBalance}
+                                    disabled={isSubmitting || !canProceedWithTransaction()}
                                     className="bg-cyan-500 hover:bg-cyan-600 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-xl transition-colors duration-200 flex items-center justify-center"
                                 >
                                     <span className="ml-2">💾</span>
