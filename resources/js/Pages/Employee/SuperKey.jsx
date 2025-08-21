@@ -6,6 +6,7 @@ import ThermalReceipt from '@/Components/ThermalReceipt';
 import { useCentralCashBalance } from '@/Hooks/useCentralCashBalance';
 import NotificationModal from '@/Components/NotificationModal';
 import { useNotification } from '@/Hooks/useNotification';
+import { generateSuperKeyReference } from '@/utils/generateUniqueReference';
 
 export default function SuperKey({
     user,
@@ -84,19 +85,15 @@ export default function SuperKey({
         return () => clearInterval(interval);
     }, []);
 
-    // توليد رقم مرجع جديد
+    // توليد رقم مرجع جديد باستخدام الدالة المحسنة
     useEffect(() => {
         const generateRefNumber = () => {
-            const now = new Date();
-            const dateStr = now.getFullYear().toString() +
-                           (now.getMonth() + 1).toString().padStart(2, '0') +
-                           now.getDate().toString().padStart(2, '0');
-            const timeStr = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-            setReferenceNumber(`SUP${dateStr}${timeStr}`);
+            const newRef = generateSuperKeyReference(user?.id);
+            setReferenceNumber(newRef);
         };
 
         generateRefNumber();
-    }, []);
+    }, [user?.id]);
 
     // حساب العمولة التلقائي - تم إلغاؤه ليبدأ بصفر
     // useEffect(() => {
@@ -240,13 +237,9 @@ export default function SuperKey({
                     notes: ''
                 });
 
-                // توليد رقم مرجع جديد
-                const now = new Date();
-                const dateStr = now.getFullYear().toString() +
-                               (now.getMonth() + 1).toString().padStart(2, '0') +
-                               now.getDate().toString().padStart(2, '0');
-                const timeStr = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-                setReferenceNumber(`SUP${dateStr}${timeStr}`);
+                // توليد رقم مرجع جديد باستخدام الدالة المحسنة
+                const newRef = generateSuperKeyReference(user?.id);
+                setReferenceNumber(newRef);
 
                 showSuccess('نجاح العملية', result.message);
                 return { success: true, result };

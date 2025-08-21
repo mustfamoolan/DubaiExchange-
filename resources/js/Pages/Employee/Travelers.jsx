@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import EmployeeLayout from '../../Layouts/EmployeeLayout';
 import { router } from '@inertiajs/react';
 import { useCentralCashBalance } from '../../Hooks/useCentralCashBalance';
-import { generateUniqueReference } from '../../Utils/generateUniqueReference';
+import { generateTravelersReference } from '../../utils/generateUniqueReference';
 import NotificationModal from '../../Components/NotificationModal';
 import { useNotification } from '../../Hooks/useNotification';
 
@@ -73,7 +73,7 @@ export default function Travelers({
     // توليد رقم إيصال جديد
     useEffect(() => {
         const generateReceiptNumber = () => {
-            const uniqueRef = generateUniqueReference('TRV');
+            const uniqueRef = generateTravelersReference(user?.id);
             setFormData(prev => ({ ...prev, receiptNumber: uniqueRef }));
         };
 
@@ -222,7 +222,7 @@ export default function Travelers({
                 }));
 
                 // توليد رقم إيصال جديد
-                const uniqueRef = generateUniqueReference('TRV');
+                const uniqueRef = generateTravelersReference(user?.id);
                 setFormData(prev => ({ ...prev, receiptNumber: uniqueRef }));
 
                 showSuccess('نجاح العملية', 'تم حفظ معاملة المسافر بنجاح!');

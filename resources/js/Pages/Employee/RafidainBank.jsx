@@ -6,6 +6,7 @@ import NotificationModal from '../../Components/NotificationModal';
 import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
 import { useCentralCashBalance } from '../../Hooks/useCentralCashBalance';
 import { useNotification } from '../../Hooks/useNotification';
+import { generateRafidainReference } from '../../utils/generateUniqueReference';
 
 export default function RafidainBank({
     user,
@@ -84,19 +85,15 @@ export default function RafidainBank({
         return () => clearInterval(interval);
     }, []);
 
-    // توليد رقم مرجع جديد
+    // توليد رقم مرجع جديد باستخدام الدالة المحسنة
     useEffect(() => {
         const generateRefNumber = () => {
-            const now = new Date();
-            const dateStr = now.getFullYear().toString() +
-                           (now.getMonth() + 1).toString().padStart(2, '0') +
-                           now.getDate().toString().padStart(2, '0');
-            const timeStr = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-            setReferenceNumber(`RAF${dateStr}${timeStr}`);
+            const newRef = generateRafidainReference(user?.id);
+            setReferenceNumber(newRef);
         };
 
         generateRefNumber();
-    }, []);
+    }, [user?.id]);
 
     // حساب العمولة التلقائي - تم إلغاؤه ليبدأ بصفر
     // useEffect(() => {

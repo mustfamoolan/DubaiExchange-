@@ -6,6 +6,7 @@ import { useThermalReceipt } from '../../Hooks/useThermalReceipt';
 import { useCentralCashBalance } from '../../Hooks/useCentralCashBalance';
 import NotificationModal from '../../Components/NotificationModal';
 import { useNotification } from '../../Hooks/useNotification';
+import { generateRashidBankReference } from '../../utils/generateUniqueReference';
 
 export default function RashidBank({
     user,
@@ -84,19 +85,15 @@ export default function RashidBank({
         return () => clearInterval(interval);
     }, []);
 
-    // توليد رقم مرجع جديد
+    // توليد رقم مرجع جديد باستخدام الدالة المحسنة
     useEffect(() => {
         const generateRefNumber = () => {
-            const now = new Date();
-            const dateStr = now.getFullYear().toString() +
-                           (now.getMonth() + 1).toString().padStart(2, '0') +
-                           now.getDate().toString().padStart(2, '0');
-            const timeStr = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-            setReferenceNumber(`RAS${dateStr}${timeStr}`);
+            const newRef = generateRashidBankReference(user?.id);
+            setReferenceNumber(newRef);
         };
 
         generateRefNumber();
-    }, []);
+    }, [user?.id]);
 
     // تنسيق الأرقام مع الفواصل وإزالة الأصفار الزائدة
     const formatNumberWithCommas = (value) => {
@@ -276,13 +273,9 @@ export default function RashidBank({
             notes: ''
         });
 
-        // توليد رقم مرجع جديد
-        const now = new Date();
-        const dateStr = now.getFullYear().toString() +
-                       (now.getMonth() + 1).toString().padStart(2, '0') +
-                       now.getDate().toString().padStart(2, '0');
-        const timeStr = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-        setReferenceNumber(`RAS${dateStr}${timeStr}`);
+        // توليد رقم مرجع جديد باستخدام الدالة المحسنة
+        const newRef = generateRashidBankReference(user?.id);
+        setReferenceNumber(newRef);
     };
 
     return (

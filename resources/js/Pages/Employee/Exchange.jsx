@@ -7,7 +7,7 @@ import { useReceiveExchangeReceipt } from '../../Hooks/useReceiveExchangeReceipt
 import ReceiveExchangeThermalReceipt from '../../Components/ReceiveExchangeThermalReceipt';
 import { useCentralCashBalance } from '../../Hooks/useCentralCashBalance';
 import { useCentralDollarBalance } from '../../Hooks/useCentralDollarBalance';
-import { generateUniqueReference } from '../../Utils/generateUniqueReference';
+import { generateExchangeReference } from '../../utils/generateUniqueReference';
 import NotificationModal from '../../Components/NotificationModal';
 import { useNotification } from '../../Hooks/useNotification';
 
@@ -129,7 +129,7 @@ export default function Exchange({
     // توليد رقم مرجع جديد
     useEffect(() => {
         const generateRefNumber = () => {
-            const uniqueRef = generateUniqueReference('EXC');
+            const uniqueRef = generateExchangeReference(user?.id);
             setReferenceNumber(uniqueRef);
         };
 

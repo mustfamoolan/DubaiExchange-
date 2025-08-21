@@ -7,7 +7,7 @@ import { useCentralDollarBalance } from '../../Hooks/useCentralDollarBalance';
 import ThermalReceipt from '../../Components/ThermalReceipt';
 import { useReceiveExchangeReceipt } from '../../Hooks/useReceiveExchangeReceipt';
 import ReceiveExchangeThermalReceipt from '../../Components/ReceiveExchangeThermalReceipt';
-import { generateUniqueReference } from '../../Utils/generateUniqueReference';
+import { generateReceiveReference } from '../../utils/generateUniqueReference';
 import NotificationModal from '../../Components/NotificationModal';
 import { useNotification } from '../../Hooks/useNotification';
 
@@ -136,12 +136,12 @@ export default function Receive({
     // توليد رقم مرجع جديد
     useEffect(() => {
         const generateRefNumber = () => {
-            const uniqueRef = generateUniqueReference('REC');
+            const uniqueRef = generateReceiveReference(user?.id);
             setReferenceNumber(uniqueRef);
         };
 
         generateRefNumber();
-    }, []);
+    }, [user?.id]);
 
     // تحديث documentNumber في formData عند تغيير referenceNumber
     useEffect(() => {
@@ -588,7 +588,7 @@ export default function Receive({
                 }));
 
                 // توليد رقم مرجع جديد
-                const uniqueRef = generateUniqueReference('REC');
+                const uniqueRef = generateReceiveReference(user?.id);
                 setReferenceNumber(uniqueRef);
 
                 // تحديث التوقيت الحالي
