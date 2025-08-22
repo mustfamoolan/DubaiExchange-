@@ -5,245 +5,508 @@ import { usePage } from '@inertiajs/react';
 
 export default function CustomerStatement({ customer, transactions }) {
     const { flash } = usePage().props;
-    const [searchTerm, setSearchTerm] = useState('');
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
     const [filterType, setFilterType] = useState('all'); // all, received, delivered
     const [filterCurrency, setFilterCurrency] = useState('all'); // all, iqd, usd
 
-    // فلترة المعاملات
+    // فلترة المعاملات حسب التاريخ والنوع
     const filteredTransactions = transactions.filter(transaction => {
-        const matchesSearch = transaction.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                             transaction.transaction_code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                             transaction.employee_name.toLowerCase().includes(searchTerm.toLowerCase());
+        const transactionDate = new Date(transaction.transaction_date);
+        const fromDate = dateFrom ? new Date(dateFrom) : null;
+        const toDate = dateTo ? new Date(dateTo) : null;
+
+        const matchesDateRange = (!fromDate || transactionDate >= fromDate) &&
+                                (!toDate || transactionDate <= toDate);
 
         const matchesType = filterType === 'all' || transaction.transaction_type === filterType;
         const matchesCurrency = filterCurrency === 'all' || transaction.currency_type === filterCurrency;
 
-        return matchesSearch && matchesType && matchesCurrency;
+        return matchesDateRange && matchesType && matchesCurrency;
     });
+
+    // حساب الرصيد التراكمي الصحيح
+    const calculateRunningBalance = () => {
+        // ترتيب جميع المعاملات حسب التاريخ
+        const allTransactionsSorted = [...transactions].sort((a, b) =>
+            new Date(a.transaction_date) - new Date(b.transaction_date)
+        );
+
+        let runningBalanceIQD = customer.iqd_opening_balance || 0;
+        let runningBalanceUSD = customer.usd_opening_balance || 0;
+
+        // إنشاء خريطة للأرصدة لكل معاملة
+        const balanceMap = new Map();
+
+        // حساب الرصيد التراكمي لجميع المعاملات
+        allTransactionsSorted.forEach((transaction) => {
+            const amount = parseFloat(transaction.amount) || 0;
+
+            if (transaction.currency_type === 'iqd') {
+                if (transaction.transaction_type === 'received') {
+                    runningBalanceIQD += amount;
+                } else if (transaction.transaction_type === 'delivered') {
+                    runningBalanceIQD -= amount;
+                }
+            } else if (transaction.currency_type === 'usd') {
+                if (transaction.transaction_type === 'received') {
+                    runningBalanceUSD += amount;
+                } else if (transaction.transaction_type === 'delivered') {
+                    runningBalanceUSD -= amount;
+                }
+            }
+
+            // حفظ الرصيد لهذه المعاملة
+            balanceMap.set(transaction.id, {
+                runningBalanceIQD: runningBalanceIQD,
+                runningBalanceUSD: runningBalanceUSD
+            });
+        });
+
+        // تطبيق الأرصدة على المعاملات المفلترة
+        return filteredTransactions.map((transaction) => {
+            const balance = balanceMap.get(transaction.id) || {
+                runningBalanceIQD: customer.iqd_opening_balance || 0,
+                runningBalanceUSD: customer.usd_opening_balance || 0
+            };
+
+            return {
+                ...transaction,
+                runningBalanceIQD: balance.runningBalanceIQD,
+                runningBalanceUSD: balance.runningBalanceUSD
+            };
+        });
+    };
+
+    const transactionsWithBalance = calculateRunningBalance();
+
+    // تنسيق الأرقام بالأرقام الإنجليزية بدون كسور عشرية
+    const formatNumber = (num) => {
+        const intNum = Math.floor(num || 0); // إزالة الكسور العشرية
+        return new Intl.NumberFormat('en-US').format(intNum);
+    };
+
+    // تنسيق التاريخ بالأرقام الإنجليزية
+    const formatDate = (dateString) => {
+        return new Date(dateString).toLocaleDateString('en-GB');
+    };
+
+    // دالة الطباعة الصحيحة
+    const handlePrint = () => {
+        // إنشاء نافذة طباعة منفصلة
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
+
+        // إنشاء محتوى HTML للطباعة
+        const printContent = `
+            <!DOCTYPE html>
+            <html dir="rtl" lang="ar">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>كشف حساب العميل - ${customer.name}</title>
+                <style>
+                    * {
+                        margin: 0;
+                        padding: 0;
+                        box-sizing: border-box;
+                        font-family: 'Arial', sans-serif;
+                    }
+
+                    body {
+                        font-size: 12px;
+                        line-height: 1.4;
+                        color: #000;
+                        background: white;
+                        direction: rtl;
+                    }
+
+                    .container {
+                        width: 100%;
+                        max-width: 210mm;
+                        margin: 0 auto;
+                        padding: 10mm;
+                    }
+
+                    .header {
+                        border: 2px solid #000;
+                        margin-bottom: 10px;
+                    }
+
+                    .header-row {
+                        display: grid;
+                        grid-template-columns: 1fr auto 1fr auto 2fr auto;
+                        border-bottom: 1px solid #000;
+                    }
+
+                    .header-cell {
+                        padding: 8px;
+                        text-align: center;
+                        border-left: 1px solid #000;
+                        font-weight: normal;
+                    }
+
+                    .header-cell:last-child {
+                        border-left: none;
+                    }
+
+                    .header-cell.highlight {
+                        background-color: #f5f5f5;
+                        font-weight: bold;
+                    }
+
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        border: 2px solid #000;
+                        font-size: 11px;
+                    }
+
+                    th, td {
+                        border: 1px solid #000;
+                        padding: 4px 2px;
+                        text-align: center;
+                        vertical-align: middle;
+                    }
+
+                    th {
+                        background-color: #f5f5f5;
+                        font-weight: bold;
+                        font-size: 12px;
+                    }
+
+                    .opening-balance {
+                        background-color: #e3f2fd;
+                        font-weight: bold;
+                    }
+
+                    .even-row {
+                        background-color: #f9f9f9;
+                    }
+
+                    @page {
+                        size: A4;
+                        margin: 15mm;
+                    }
+
+                    @media print {
+                        .container {
+                            max-width: none;
+                            margin: 0;
+                            padding: 0;
+                        }
+
+                        body {
+                            font-size: 10px;
+                        }
+
+                        table {
+                            font-size: 9px;
+                        }
+
+                        th {
+                            font-size: 10px;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <!-- ترويسة الكشف -->
+                    <div class="header">
+                        <div class="header-row">
+                            <div class="header-cell highlight">الاسم</div>
+                            <div class="header-cell">${customer.name}</div>
+                            <div class="header-cell">للتاريخ من</div>
+                            <div class="header-cell highlight">${dateFrom || '2025-01-01'}</div>
+                            <div class="header-cell">إلى</div>
+                            <div class="header-cell highlight">${dateTo || new Date().toISOString().split('T')[0]}</div>
+                        </div>
+                    </div>
+
+                    <!-- جدول البيانات -->
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>العملة</th>
+                                <th>الرصيد</th>
+                                <th>الصادر</th>
+                                <th>الوارد</th>
+                                <th>نوع الحركة</th>
+                                <th>الملاحظات</th>
+                                <th>رقم القائمة</th>
+                                <th>ت الحركة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- الرصيد الافتتاحي -->
+                            <tr class="opening-balance">
+                                <td>دينار</td>
+                                <td>${formatNumber(customer.iqd_opening_balance || 0)}</td>
+                                <td>-</td>
+                                <td>-</td>
+                                <td>رصيد افتتاحي</td>
+                                <td>الرصيد الافتتاحي بالدينار العراقي</td>
+                                <td>-</td>
+                                <td>-</td>
+                            </tr>
+                            <tr class="opening-balance">
+                                <td>دولار</td>
+                                <td>${formatNumber(customer.usd_opening_balance || 0)}</td>
+                                <td>-</td>
+                                <td>-</td>
+                                <td>رصيد افتتاحي</td>
+                                <td>الرصيد الافتتاحي بالدولار الأمريكي</td>
+                                <td>-</td>
+                                <td>-</td>
+                            </tr>
+
+                            <!-- المعاملات -->
+                            ${transactionsWithBalance.map((transaction, index) => `
+                                <tr class="${index % 2 === 0 ? 'even-row' : ''}">
+                                    <td>${transaction.currency_type === 'iqd' ? 'دينار' : 'دولار'}</td>
+                                    <td>${transaction.currency_type === 'iqd'
+                                        ? formatNumber(transaction.runningBalanceIQD)
+                                        : formatNumber(transaction.runningBalanceUSD)
+                                    }</td>
+                                    <td>${transaction.transaction_type === 'delivered' ? formatNumber(transaction.amount) : '0'}</td>
+                                    <td>${transaction.transaction_type === 'received' ? formatNumber(transaction.amount) : '0'}</td>
+                                    <td>${transaction.transaction_type === 'received' ? 'قبض' : 'صرف'}</td>
+                                    <td>${transaction.description || '-'}</td>
+                                    <td>${transaction.transaction_code}</td>
+                                    <td>${index + 1}</td>
+                                </tr>
+                            `).join('')}
+
+                            ${transactionsWithBalance.length === 0 ? `
+                                <tr>
+                                    <td colspan="8" style="padding: 20px; color: #666;">
+                                        لا توجد معاملات في الفترة المحددة
+                                    </td>
+                                </tr>
+                            ` : ''}
+                        </tbody>
+                    </table>
+                </div>
+
+                <script>
+                    // طباعة تلقائية عند فتح النافذة
+                    window.onload = function() {
+                        window.print();
+                        // إغلاق النافذة بعد الطباعة
+                        window.onafterprint = function() {
+                            window.close();
+                        };
+                    };
+                </script>
+            </body>
+            </html>
+        `;
+
+        // كتابة المحتوى في النافذة الجديدة
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+    };
 
     return (
         <AdminLayout title={`كشف حساب العميل: ${customer.name}`}>
-            {/* رسائل النجاح والخطأ */}
-            {flash.success && (
-                <div className="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
-                    {flash.success}
-                </div>
-            )}
-            {flash.error && (
-                <div className="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-                    {flash.error}
-                </div>
-            )}
-
             <div className="space-y-6">
-                {/* بيانات العميل */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-xl font-bold text-gray-900">بيانات العميل</h2>
+                {/* رسائل النجاح والخطأ */}
+                {flash.success && (
+                    <div className="mb-6 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+                        {flash.success}
+                    </div>
+                )}
+                {flash.error && (
+                    <div className="mb-6 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+                        {flash.error}
+                    </div>
+                )}
+
+                {/* أدوات التحكم */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 no-print">
+                    <div className="flex flex-wrap items-center justify-between gap-4">
                         <Link
                             href="/admin/customers"
-                            className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+                            className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2"
                         >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                            </svg>
                             العودة للعملاء
                         </Link>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div className="text-center">
-                            <p className="text-sm text-gray-500 mb-1">رمز العميل</p>
-                            <p className="text-lg font-bold text-blue-600">{customer.customer_code}</p>
-                        </div>
-                        <div className="text-center">
-                            <p className="text-sm text-gray-500 mb-1">اسم العميل</p>
-                            <p className="text-lg font-bold text-gray-900">{customer.name}</p>
-                        </div>
-                        <div className="text-center">
-                            <p className="text-sm text-gray-500 mb-1">رقم الهاتف</p>
-                            <p className="text-lg font-bold text-gray-900">{customer.phone}</p>
-                        </div>
-                        <div className="text-center">
-                            <p className="text-sm text-gray-500 mb-1">الحالة</p>
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                customer.is_active
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-red-100 text-red-800'
-                            }`}>
-                                {customer.is_active ? 'نشط' : 'معطل'}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ملخص الأرصدة */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* الرصيد الافتتاحي */}
-                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                        <h3 className="text-sm font-medium text-blue-800 mb-3">الرصيد الافتتاحي</h3>
-                        <div className="space-y-2">
-                            <div className="flex justify-between">
-                                <span className="text-sm text-blue-600">دينار:</span>
-                                <span className="font-bold text-blue-900">{customer.iqd_opening_balance.toLocaleString()} د.ع</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-sm text-blue-600">دولار:</span>
-                                <span className="font-bold text-blue-900">${customer.usd_opening_balance.toLocaleString()}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* إجمالي المستلم */}
-                    <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                        <h3 className="text-sm font-medium text-green-800 mb-3">إجمالي المستلم</h3>
-                        <div className="space-y-2">
-                            <div className="flex justify-between">
-                                <span className="text-sm text-green-600">دينار:</span>
-                                <span className="font-bold text-green-900">{customer.total_received.iqd.toLocaleString()} د.ع</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-sm text-green-600">دولار:</span>
-                                <span className="font-bold text-green-900">${customer.total_received.usd.toLocaleString()}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* إجمالي المسلم */}
-                    <div className="bg-red-50 rounded-lg p-4 border border-red-200">
-                        <h3 className="text-sm font-medium text-red-800 mb-3">إجمالي المسلم</h3>
-                        <div className="space-y-2">
-                            <div className="flex justify-between">
-                                <span className="text-sm text-red-600">دينار:</span>
-                                <span className="font-bold text-red-900">{customer.total_delivered.iqd.toLocaleString()} د.ع</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-sm text-red-600">دولار:</span>
-                                <span className="font-bold text-red-900">${customer.total_delivered.usd.toLocaleString()}</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* الرصيد المتبقي */}
-                    <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
-                        <h3 className="text-sm font-medium text-purple-800 mb-3">الرصيد المتبقي</h3>
-                        <div className="space-y-2">
-                            <div className="flex justify-between">
-                                <span className="text-sm text-purple-600">دينار:</span>
-                                <span className={`font-bold ${customer.remaining_balance.iqd >= 0 ? 'text-purple-900' : 'text-red-700'}`}>
-                                    {customer.remaining_balance.iqd.toLocaleString()} د.ع
-                                </span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-sm text-purple-600">دولار:</span>
-                                <span className={`font-bold ${customer.remaining_balance.usd >= 0 ? 'text-purple-900' : 'text-red-700'}`}>
-                                    ${customer.remaining_balance.usd.toLocaleString()}
-                                </span>
-                            </div>
+                        <div className="flex flex-wrap gap-3">
+                            <input
+                                type="date"
+                                value={dateFrom}
+                                onChange={(e) => setDateFrom(e.target.value)}
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="من تاريخ"
+                            />
+                            <input
+                                type="date"
+                                value={dateTo}
+                                onChange={(e) => setDateTo(e.target.value)}
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="إلى تاريخ"
+                            />
+                            <select
+                                value={filterType}
+                                onChange={(e) => setFilterType(e.target.value)}
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                                <option value="all">جميع الحركات</option>
+                                <option value="received">قبض</option>
+                                <option value="delivered">صرف</option>
+                            </select>
+                            <select
+                                value={filterCurrency}
+                                onChange={(e) => setFilterCurrency(e.target.value)}
+                                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                                <option value="all">جميع العملات</option>
+                                <option value="iqd">دينار</option>
+                                <option value="usd">دولار</option>
+                            </select>
+                            <button
+                                onClick={handlePrint}
+                                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center gap-2"
+                            >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                </svg>
+                                طباعة
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                {/* كشف حساب المعاملات */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-                    <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4">
-                        <h3 className="text-lg font-bold">كشف حساب المعاملات</h3>
-                    </div>
-
-                    {/* فلاتر البحث */}
-                    <div className="p-4 border-b border-gray-200 bg-gray-50">
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div>
-                                <input
-                                    type="text"
-                                    placeholder="البحث في المعاملات..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-right"
-                                />
+                {/* كشف الحساب */}
+                <div className="bg-white border border-gray-400">
+                    {/* ترويسة الكشف - نفس تصميم الصورة */}
+                    <div className="border-b border-gray-400">
+                        {/* الصف العلوي للتواريخ */}
+                        <div className="grid grid-cols-6 border-b border-gray-400">
+                            <div className="p-2 text-center text-sm font-medium bg-gray-100">
+                                الاسم
                             </div>
-                            <div>
-                                <select
-                                    value={filterType}
-                                    onChange={(e) => setFilterType(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-right"
-                                >
-                                    <option value="all">جميع الأنواع</option>
-                                    <option value="received">مستلم</option>
-                                    <option value="delivered">مسلم</option>
-                                </select>
+                            <div className="border-r border-gray-400 p-2 text-center text-sm font-medium">
+                                {customer.name}
                             </div>
-                            <div>
-                                <select
-                                    value={filterCurrency}
-                                    onChange={(e) => setFilterCurrency(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-right"
-                                >
-                                    <option value="all">جميع العملات</option>
-                                    <option value="iqd">دينار عراقي</option>
-                                    <option value="usd">دولار أمريكي</option>
-                                </select>
+                            <div className="border-r border-gray-400 p-2 text-center text-sm">
+                                للتاريخ من
                             </div>
-                            <div className="text-sm text-gray-600 flex items-center">
-                                إجمالي المعاملات: {filteredTransactions.length}
+                            <div className="border-r border-gray-400 p-2 text-center text-sm font-medium bg-gray-100">
+                                {dateFrom || '2025-01-01'}
+                            </div>
+                            <div className="border-r border-gray-400 p-2 text-center text-sm">
+                                إلى
+                            </div>
+                            <div className="border-r border-gray-400 p-2 text-center text-sm font-medium bg-gray-100">
+                                {dateTo || new Date().toISOString().split('T')[0]}
                             </div>
                         </div>
                     </div>
 
-                    {/* جدول المعاملات */}
-                    {filteredTransactions.length > 0 ? (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
-                                    <tr>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">رقم المعاملة</th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">النوع</th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">العملة</th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">المبلغ</th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الوصف</th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">الموظف</th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">التاريخ</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
-                                    {filteredTransactions.map((transaction) => (
-                                        <tr key={transaction.id} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {/* جدول كشف الحساب */}
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full border-collapse">
+                            <thead>
+                                <tr className="bg-gray-100">
+                                    <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">العملة</th>
+                                    <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">الرصيد</th>
+                                    <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">الصادر</th>
+                                    <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">الوارد</th>
+                                    <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">نوع الحركة</th>
+                                    <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">الملاحظات</th>
+                                    <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">رقم القائمة</th>
+                                    <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">ت الحركة</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white">
+                                {/* صفوف الرصيد الافتتاحي */}
+                                <tr className="bg-blue-50 border-b-2 border-blue-300">
+                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs font-bold">دينار</td>
+                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs font-bold">
+                                        {formatNumber(customer.iqd_opening_balance || 0)}
+                                    </td>
+                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
+                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
+                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs font-bold">رصيد افتتاحي</td>
+                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs">الرصيد الافتتاحي بالدينار العراقي</td>
+                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
+                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
+                                </tr>
+                                <tr className="bg-blue-50 border-b-2 border-blue-300">
+                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs font-bold">دولار</td>
+                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs font-bold">
+                                        {formatNumber(customer.usd_opening_balance || 0)}
+                                    </td>
+                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
+                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
+                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs font-bold">رصيد افتتاحي</td>
+                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs">الرصيد الافتتاحي بالدولار الأمريكي</td>
+                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
+                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
+                                </tr>
+
+                                {/* صفوف المعاملات */}
+                                {transactionsWithBalance.length > 0 ? (
+                                    transactionsWithBalance.map((transaction, index) => (
+                                        <tr key={transaction.id} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                                            <td className="border border-gray-400 px-2 py-1 text-center text-xs">
+                                                {transaction.currency_type === 'iqd' ? 'دينار' : 'دولار'}
+                                            </td>
+                                            <td className="border border-gray-400 px-2 py-1 text-center text-xs">
+                                                {transaction.currency_type === 'iqd'
+                                                    ? formatNumber(transaction.runningBalanceIQD)
+                                                    : formatNumber(transaction.runningBalanceUSD)
+                                                }
+                                            </td>
+                                            <td className="border border-gray-400 px-2 py-1 text-center text-xs">
+                                                {transaction.transaction_type === 'delivered' ? formatNumber(transaction.amount) : '0'}
+                                            </td>
+                                            <td className="border border-gray-400 px-2 py-1 text-center text-xs">
+                                                {transaction.transaction_type === 'received' ? formatNumber(transaction.amount) : '0'}
+                                            </td>
+                                            <td className="border border-gray-400 px-2 py-1 text-center text-xs">
+                                                {transaction.transaction_type === 'received' ? 'قبض' : 'صرف'}
+                                            </td>
+                                            <td className="border border-gray-400 px-2 py-1 text-center text-xs">
+                                                {transaction.description || '-'}
+                                                {transaction.notes && (
+                                                    <div className="text-xs text-gray-500 mt-1">
+                                                        {transaction.notes}
+                                                    </div>
+                                                )}
+                                            </td>
+                                            <td className="border border-gray-400 px-2 py-1 text-center text-xs">
                                                 {transaction.transaction_code}
                                             </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                                    transaction.transaction_type === 'received'
-                                                        ? 'bg-green-100 text-green-800'
-                                                        : 'bg-red-100 text-red-800'
-                                                }`}>
-                                                    {transaction.transaction_type_text}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {transaction.currency_type_text}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                                                {transaction.amount.toLocaleString()} {transaction.currency_type === 'iqd' ? 'د.ع' : '$'}
-                                            </td>
-                                            <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                                                {transaction.description || '-'}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {transaction.employee_name}
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                                {transaction.transaction_date}
+                                            <td className="border border-gray-400 px-2 py-1 text-center text-xs">
+                                                {index + 1}
                                             </td>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    ) : (
-                        <div className="text-center py-8">
-                            <p className="text-gray-500">لا توجد معاملات للعميل</p>
-                        </div>
-                    )}
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="8" className="border border-gray-400 px-6 py-8 text-center text-gray-500">
+                                            <div className="flex flex-col items-center">
+                                                <svg className="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                </svg>
+                                                <p className="font-medium">لا توجد معاملات في الفترة المحددة</p>
+                                                <p className="text-sm">جرب تغيير فلاتر البحث أو الفترة الزمنية</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
+
         </AdminLayout>
     );
 }

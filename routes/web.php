@@ -119,6 +119,8 @@ Route::prefix('admin')->group(function () {
         return app(UserController::class)->toggleStatus($id);
     })->name('admin.employees.toggle');
 
+
+
     Route::get('/employees/{id}', function ($id) {
         if (!session('logged_in') || session('user_type') !== 'admin') {
             return redirect()->route('login');
