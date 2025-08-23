@@ -69,15 +69,62 @@ export default function CustomerStatement({ customer, transactions }) {
 
     const transactionsWithBalance = calculateRunningBalance();
 
-    // تنسيق الأرقام بالأرقام الإنجليزية بدون كسور عشرية
+    // تنسيق الأرقام بالأرقام الإنجليزية بدون كسور عشرية مع التلوين
     const formatNumber = (num) => {
         const intNum = Math.floor(num || 0); // إزالة الكسور العشرية
         return new Intl.NumberFormat('en-US').format(intNum);
     };
 
+    // دالة للحصول على لون الرقم حسب القيمة
+    const getNumberColor = (num) => {
+        const value = parseFloat(num) || 0;
+        if (value > 0) return 'text-green-600'; // أخضر للموجب
+        if (value < 0) return 'text-red-600';   // أحمر للسالب
+        return 'text-gray-900';                 // رمادي للصفر
+    };
+
+    // دالة لتنسيق الرقم مع اللون
+    const formatNumberWithColor = (num) => {
+        const value = parseFloat(num) || 0;
+        const formattedNumber = formatNumber(Math.abs(value));
+        const colorClass = getNumberColor(value);
+
+        return {
+            value: value < 0 ? `-${formattedNumber}` : formattedNumber,
+            colorClass: colorClass
+        };
+    };
+
     // تنسيق التاريخ بالأرقام الإنجليزية
     const formatDate = (dateString) => {
         return new Date(dateString).toLocaleDateString('en-GB');
+    };
+
+    const getColorClass = (value) => {
+        const num = parseFloat(value);
+        if (num > 0) return 'positive-amount';
+        if (num < 0) return 'negative-amount';
+        return 'zero-amount';
+    };
+
+    // دالة لاستخراج الوصف فقط من النص المخزن
+    const extractDescription = (text) => {
+        if (!text) return '-';
+
+        // إذا كان النص يحتوي على "السبب" فاستخرج ما بعدها
+        const reasonMatch = text.match(/السبب\s*(.+)/);
+        if (reasonMatch) {
+            return reasonMatch[1].trim();
+        }
+
+        // إذا كان النص يحتوي على " - " فاستخرج ما بعد آخر " - "
+        const parts = text.split(' - ');
+        if (parts.length > 1) {
+            return parts[parts.length - 1].trim();
+        }
+
+        // إذا لم يكن هناك نمط محدد، ارجع النص كما هو
+        return text.trim();
     };
 
     // دالة الطباعة الصحيحة
@@ -114,6 +161,20 @@ export default function CustomerStatement({ customer, transactions }) {
                         max-width: 210mm;
                         margin: 0 auto;
                         padding: 10mm;
+                    }
+
+                    .positive-amount {
+                        color: #059669 !important;
+                        font-weight: bold;
+                    }
+
+                    .negative-amount {
+                        color: #DC2626 !important;
+                        font-weight: bold;
+                    }
+
+                    .zero-amount {
+                        color: #1F2937 !important;
                     }
 
                     .header {
@@ -237,7 +298,7 @@ export default function CustomerStatement({ customer, transactions }) {
                             ${filterCurrency === 'iqd' ? `
                             <tr class="opening-balance">
                                 <td>دينار</td>
-                                <td>${formatNumber(customer.iqd_opening_balance || 0)}</td>
+                                <td class="${getColorClass(customer.iqd_opening_balance || 0)}">${formatNumber(customer.iqd_opening_balance || 0)}</td>
                                 <td>-</td>
                                 <td>-</td>
                                 <td>رصيد افتتاحي</td>
@@ -249,7 +310,7 @@ export default function CustomerStatement({ customer, transactions }) {
                             ${filterCurrency === 'usd' ? `
                             <tr class="opening-balance">
                                 <td>دولار</td>
-                                <td>${formatNumber(customer.usd_opening_balance || 0)}</td>
+                                <td class="${getColorClass(customer.usd_opening_balance || 0)}">${formatNumber(customer.usd_opening_balance || 0)}</td>
                                 <td>-</td>
                                 <td>-</td>
                                 <td>رصيد افتتاحي</td>
@@ -263,14 +324,14 @@ export default function CustomerStatement({ customer, transactions }) {
                             ${transactionsWithBalance.map((transaction, index) => `
                                 <tr class="${index % 2 === 0 ? 'even-row' : ''}">
                                     <td>${transaction.currency_type === 'iqd' ? 'دينار' : 'دولار'}</td>
-                                    <td>${transaction.currency_type === 'iqd'
+                                    <td class="${getColorClass(transaction.currency_type === 'iqd' ? transaction.runningBalanceIQD : transaction.runningBalanceUSD)}">${transaction.currency_type === 'iqd'
                                         ? formatNumber(transaction.runningBalanceIQD)
                                         : formatNumber(transaction.runningBalanceUSD)
                                     }</td>
-                                    <td>${transaction.transaction_type === 'delivered' ? formatNumber(transaction.amount) : '0'}</td>
-                                    <td>${transaction.transaction_type === 'received' ? formatNumber(transaction.amount) : '0'}</td>
+                                    <td class="${transaction.transaction_type === 'delivered' ? 'negative-amount' : ''}">${transaction.transaction_type === 'delivered' ? formatNumber(transaction.amount) : '0'}</td>
+                                    <td class="${transaction.transaction_type === 'received' ? 'positive-amount' : ''}">${transaction.transaction_type === 'received' ? formatNumber(transaction.amount) : '0'}</td>
                                     <td>${transaction.transaction_type === 'received' ? 'قبض' : 'صرف'}</td>
-                                    <td>${transaction.description || '-'}</td>
+                                    <td>${extractDescription(transaction.description || transaction.notes)}</td>
                                     <td>${transaction.transaction_code}</td>
                                     <td>${formatDate(transaction.transaction_date)}</td>
                                 </tr>
@@ -380,7 +441,7 @@ export default function CustomerStatement({ customer, transactions }) {
                                     <td style="border: 1px solid #000; padding: 6px; text-align: center;">${transaction.transaction_type === 'delivered' ? formatNumber(transaction.amount || 0) : '0'}</td>
                                     <td style="border: 1px solid #000; padding: 6px; text-align: center;">${transaction.transaction_type === 'received' ? formatNumber(transaction.amount || 0) : '0'}</td>
                                     <td style="border: 1px solid #000; padding: 6px; text-align: center;">${transaction.transaction_type === 'received' ? 'قبض' : 'صرف'}</td>
-                                    <td style="border: 1px solid #000; padding: 6px; text-align: center;">${transaction.description || '-'}</td>
+                                    <td style="border: 1px solid #000; padding: 6px; text-align: center;">${extractDescription(transaction.description || transaction.notes)}</td>
                                     <td style="border: 1px solid #000; padding: 6px; text-align: center;">${transaction.transaction_code || '-'}</td>
                                     <td style="border: 1px solid #000; padding: 6px; text-align: center;">${formatDate(transaction.transaction_date) || '-'}</td>
                                 </tr>
@@ -407,7 +468,7 @@ export default function CustomerStatement({ customer, transactions }) {
 
                     <!-- تاريخ الطباعة -->
                     <div style="margin-top: 20px; text-align: center; font-size: 12px; color: #666;">
-                        تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')} - ${new Date().toLocaleTimeString('ar-EG')}
+                        تاريخ الطباعة: ${new Date().toLocaleDateString('en-GB')} - ${new Date().toLocaleTimeString('en-GB')}
                     </div>
                 </div>
             `;            // إضافة العنصر إلى الصفحة مؤقتاً (مرئي للتحقق من التحويل)
@@ -427,7 +488,7 @@ export default function CustomerStatement({ customer, transactions }) {
             // إعدادات PDF محسنة
             const options = {
                 margin: [5, 5, 5, 5],
-                filename: `كشف_حساب_${customer.name}_${new Date().toLocaleDateString('ar-EG').replace(/\//g, '-')}.pdf`,
+                filename: `كشف_حساب_${customer.name}_${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}.pdf`,
                 image: {
                     type: 'jpeg',
                     quality: 1.0
@@ -646,8 +707,8 @@ export default function CustomerStatement({ customer, transactions }) {
                                 {filterCurrency === 'iqd' && (
                                     <tr className="bg-blue-50 border-b-2 border-blue-300">
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs font-bold">دينار</td>
-                                        <td className="border border-gray-400 px-2 py-1 text-center text-xs font-bold">
-                                            {formatNumber(customer.iqd_opening_balance || 0)}
+                                        <td className={`border border-gray-400 px-2 py-1 text-center text-xs font-bold ${getNumberColor(customer.iqd_opening_balance)}`}>
+                                            {formatNumberWithColor(customer.iqd_opening_balance || 0).value}
                                         </td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
@@ -660,8 +721,8 @@ export default function CustomerStatement({ customer, transactions }) {
                                 {filterCurrency === 'usd' && (
                                     <tr className="bg-blue-50 border-b-2 border-blue-300">
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs font-bold">دولار</td>
-                                        <td className="border border-gray-400 px-2 py-1 text-center text-xs font-bold">
-                                            {formatNumber(customer.usd_opening_balance || 0)}
+                                        <td className={`border border-gray-400 px-2 py-1 text-center text-xs font-bold ${getNumberColor(customer.usd_opening_balance)}`}>
+                                            {formatNumberWithColor(customer.usd_opening_balance || 0).value}
                                         </td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
@@ -679,34 +740,29 @@ export default function CustomerStatement({ customer, transactions }) {
                                             <td className="border border-gray-400 px-2 py-1 text-center text-xs">
                                                 {transaction.currency_type === 'iqd' ? 'دينار' : 'دولار'}
                                             </td>
-                                            <td className="border border-gray-400 px-2 py-1 text-center text-xs">
+                                            <td className={`border border-gray-400 px-2 py-1 text-center text-xs ${getNumberColor(transaction.currency_type === 'iqd' ? transaction.runningBalanceIQD : transaction.runningBalanceUSD)}`}>
                                                 {transaction.currency_type === 'iqd'
-                                                    ? formatNumber(transaction.runningBalanceIQD)
-                                                    : formatNumber(transaction.runningBalanceUSD)
+                                                    ? formatNumberWithColor(transaction.runningBalanceIQD).value
+                                                    : formatNumberWithColor(transaction.runningBalanceUSD).value
                                                 }
                                             </td>
-                                            <td className="border border-gray-400 px-2 py-1 text-center text-xs">
+                                            <td className={`border border-gray-400 px-2 py-1 text-center text-xs ${transaction.transaction_type === 'delivered' ? 'text-red-600' : ''}`}>
                                                 {transaction.transaction_type === 'delivered' ? formatNumber(transaction.amount) : '0'}
                                             </td>
-                                            <td className="border border-gray-400 px-2 py-1 text-center text-xs">
+                                            <td className={`border border-gray-400 px-2 py-1 text-center text-xs ${transaction.transaction_type === 'received' ? 'text-green-600' : ''}`}>
                                                 {transaction.transaction_type === 'received' ? formatNumber(transaction.amount) : '0'}
                                             </td>
                                             <td className="border border-gray-400 px-2 py-1 text-center text-xs">
                                                 {transaction.transaction_type === 'received' ? 'قبض' : 'صرف'}
                                             </td>
                                             <td className="border border-gray-400 px-2 py-1 text-center text-xs">
-                                                {transaction.description || '-'}
-                                                {transaction.notes && (
-                                                    <div className="text-xs text-gray-500 mt-1">
-                                                        {transaction.notes}
-                                                    </div>
-                                                )}
+                                                {extractDescription(transaction.description || transaction.notes)}
                                             </td>
                                             <td className="border border-gray-400 px-2 py-1 text-center text-xs">
                                                 {transaction.transaction_code}
                                             </td>
                                             <td className="border border-gray-400 px-2 py-1 text-center text-xs">
-                                                {new Date(transaction.transaction_date).toLocaleDateString('ar-IQ')}
+                                                {new Date(transaction.transaction_date).toLocaleDateString('en-GB')}
                                             </td>
                                         </tr>
                                     ))

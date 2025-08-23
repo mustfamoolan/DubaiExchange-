@@ -14,6 +14,7 @@ export default function Customers({ customers: initialCustomers = [] }) {
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         phone: '',
+        password: '',
         iqd_opening_balance: 0,
         usd_opening_balance: 0,
         notes: ''
@@ -22,6 +23,7 @@ export default function Customers({ customers: initialCustomers = [] }) {
     const { data: editData, setData: setEditData, put, processing: editProcessing, errors: editErrors, reset: resetEdit } = useForm({
         name: '',
         phone: '',
+        password: '',
         iqd_opening_balance: 0,
         usd_opening_balance: 0,
         notes: ''
@@ -81,6 +83,7 @@ export default function Customers({ customers: initialCustomers = [] }) {
         setEditData({
             name: customer.name,
             phone: customer.phone,
+            password: '', // دائماً فارغ في التعديل
             iqd_opening_balance: customer.iqd_opening_balance,
             usd_opening_balance: customer.usd_opening_balance,
             notes: customer.notes || ''
@@ -296,6 +299,26 @@ export default function Customers({ customers: initialCustomers = [] }) {
                                     )}
                                 </div>
 
+                                {/* كلمة المرور */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                                        كلمة المرور (اختياري)
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={data.password}
+                                        onChange={(e) => setData('password', e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
+                                        placeholder="كلمة مرور للعميل (اختياري)"
+                                    />
+                                    {errors.password && (
+                                        <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                                    )}
+                                    <p className="mt-1 text-xs text-gray-500 text-right">
+                                        كلمة المرور اختيارية ويمكن استخدامها لاحقاً
+                                    </p>
+                                </div>
+
                                 {/* الرصيد الافتتاحي دينار */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
@@ -414,6 +437,26 @@ export default function Customers({ customers: initialCustomers = [] }) {
                                     {editErrors.phone && (
                                         <p className="mt-1 text-sm text-red-600">{editErrors.phone}</p>
                                     )}
+                                </div>
+
+                                {/* كلمة المرور */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2 text-right">
+                                        كلمة المرور (اختياري)
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={editData.password}
+                                        onChange={(e) => setEditData('password', e.target.value)}
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
+                                        placeholder="اتركه فارغاً لعدم التغيير"
+                                    />
+                                    {editErrors.password && (
+                                        <p className="mt-1 text-sm text-red-600">{editErrors.password}</p>
+                                    )}
+                                    <p className="mt-1 text-xs text-gray-500 text-right">
+                                        اتركه فارغاً إذا كنت لا تريد تغيير كلمة المرور
+                                    </p>
                                 </div>
 
                                 {/* الرصيد الافتتاحي دينار */}

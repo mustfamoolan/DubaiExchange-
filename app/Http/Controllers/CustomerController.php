@@ -47,6 +47,7 @@ class CustomerController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|string|unique:customers,phone|regex:/^07[0-9]{9}$/',
+            'password' => 'nullable|string|min:4|max:50',
             'iqd_opening_balance' => 'required|numeric',
             'usd_opening_balance' => 'required|numeric',
             'notes' => 'nullable|string|max:1000'
@@ -55,6 +56,8 @@ class CustomerController extends Controller
             'phone.required' => 'رقم الهاتف مطلوب',
             'phone.unique' => 'رقم الهاتف مستخدم مسبقاً',
             'phone.regex' => 'رقم الهاتف يجب أن يبدأ بـ 07 ويكون 11 رقم',
+            'password.min' => 'كلمة المرور يجب أن تكون أكثر من 4 أحرف',
+            'password.max' => 'كلمة المرور يجب أن تكون أقل من 50 حرف',
             'iqd_opening_balance.required' => 'الرصيد الافتتاحي دينار مطلوب',
             'iqd_opening_balance.numeric' => 'الرصيد الافتتاحي دينار يجب أن يكون رقم',
             'usd_opening_balance.required' => 'الرصيد الافتتاحي دولار مطلوب',
@@ -65,6 +68,7 @@ class CustomerController extends Controller
             'customer_code' => Customer::generateCustomerCode(),
             'name' => $request->name,
             'phone' => $request->phone,
+            'password' => $request->password, // سيتم hash تلقائياً بواسطة الـ model
             'iqd_opening_balance' => $request->iqd_opening_balance,
             'usd_opening_balance' => $request->usd_opening_balance,
             'current_iqd_balance' => $request->iqd_opening_balance,
@@ -162,6 +166,7 @@ class CustomerController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'phone' => 'required|string|regex:/^07[0-9]{9}$/|unique:customers,phone,' . $customer->id,
+            'password' => 'nullable|string|min:4|max:50',
             'iqd_opening_balance' => 'required|numeric',
             'usd_opening_balance' => 'required|numeric',
             'notes' => 'nullable|string|max:1000'
@@ -170,19 +175,28 @@ class CustomerController extends Controller
             'phone.required' => 'رقم الهاتف مطلوب',
             'phone.unique' => 'رقم الهاتف مستخدم مسبقاً',
             'phone.regex' => 'رقم الهاتف يجب أن يبدأ بـ 07 ويكون 11 رقم',
+            'password.min' => 'كلمة المرور يجب أن تكون أكثر من 4 أحرف',
+            'password.max' => 'كلمة المرور يجب أن تكون أقل من 50 حرف',
             'iqd_opening_balance.required' => 'الرصيد الافتتاحي دينار مطلوب',
             'iqd_opening_balance.numeric' => 'الرصيد الافتتاحي دينار يجب أن يكون رقم',
             'usd_opening_balance.required' => 'الرصيد الافتتاحي دولار مطلوب',
             'usd_opening_balance.numeric' => 'الرصيد الافتتاحي دولار يجب أن يكون رقم',
         ]);
 
-        $customer->update([
+        $updateData = [
             'name' => $request->name,
             'phone' => $request->phone,
             'iqd_opening_balance' => $request->iqd_opening_balance,
             'usd_opening_balance' => $request->usd_opening_balance,
             'notes' => $request->notes
-        ]);
+        ];
+
+        // إضافة كلمة المرور فقط إذا تم إدخالها
+        if ($request->filled('password')) {
+            $updateData['password'] = $request->password;
+        }
+
+        $customer->update($updateData);
 
         // إعادة حساب الرصيد الحالي
         $this->recalculateBalance($customer);
@@ -280,12 +294,15 @@ class CustomerController extends Controller
             $request->validate([
                 'name' => 'required|string|max:255',
                 'phone' => 'required|string',
+                'password' => 'nullable|string|min:4|max:50',
                 'opening_balance_iqd' => 'nullable|numeric',
                 'opening_balance_usd' => 'nullable|numeric',
             ], [
                 'name.required' => 'اسم العميل مطلوب',
                 'name.max' => 'اسم العميل يجب أن يكون أقل من 255 حرف',
                 'phone.required' => 'رقم الهاتف مطلوب',
+                'password.min' => 'كلمة المرور يجب أن تكون أكثر من 4 أحرف',
+                'password.max' => 'كلمة المرور يجب أن تكون أقل من 50 حرف',
                 'opening_balance_iqd.numeric' => 'الرصيد الافتتاحي بالدينار العراقي يجب أن يكون رقم',
                 'opening_balance_usd.numeric' => 'الرصيد الافتتاحي بالدولار يجب أن يكون رقم',
             ]);
@@ -305,6 +322,7 @@ class CustomerController extends Controller
                 'customer_code' => Customer::generateCustomerCode(),
                 'name' => $request->name,
                 'phone' => $request->phone,
+                'password' => $request->password, // اختياري - سيتم hash تلقائياً
                 'iqd_opening_balance' => $iqd_balance,
                 'usd_opening_balance' => $usd_balance,
                 'current_iqd_balance' => $iqd_balance,

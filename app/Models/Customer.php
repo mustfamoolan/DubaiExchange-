@@ -14,6 +14,7 @@ class Customer extends Model
         'customer_code',
         'name',
         'phone',
+        'password',
         'iqd_opening_balance',
         'usd_opening_balance',
         'current_iqd_balance',
@@ -27,7 +28,12 @@ class Customer extends Model
         'usd_opening_balance' => 'decimal:2',
         'current_iqd_balance' => 'decimal:2',
         'current_usd_balance' => 'decimal:2',
-        'is_active' => 'boolean'
+        'is_active' => 'boolean',
+        'password' => 'hashed'
+    ];
+
+    protected $hidden = [
+        'password'
     ];
 
     /**
