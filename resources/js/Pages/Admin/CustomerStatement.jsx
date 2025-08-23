@@ -458,7 +458,7 @@ export default function CustomerStatement({ customer, transactions }) {
                     <!-- الرصيد الحالي -->
                     <div style="margin-top: 20px; padding: 15px; background-color: #f0f8ff; border: 2px solid #000; text-align: center;">
                         <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; color: #000;">الرصيد الحالي</h3>
-                        <div style="font-size: 14px; font-weight: bold; color: ${filterCurrency === 'iqd' ? '#2e7d32' : '#1976d2'};">
+                        <div style="font-size: 14px; font-weight: bold;" class="${getColorClass(filterCurrency === 'iqd' ? customer.current_iqd_balance : customer.current_usd_balance)}">
                             ${filterCurrency === 'iqd'
                                 ? `${formatNumber(customer.current_iqd_balance || 0)} دينار عراقي`
                                 : `${formatNumber(customer.current_usd_balance || 0)} دولار أمريكي`
@@ -802,8 +802,8 @@ export default function CustomerStatement({ customer, transactions }) {
                                 {filterCurrency === 'iqd' && (
                                     <tr className="bg-green-50 border-b-2 border-green-300">
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs font-bold">دينار</td>
-                                        <td className="border border-gray-400 px-2 py-1 text-center text-xs font-bold text-green-600">
-                                            {formatNumber(customer.current_iqd_balance || 0)}
+                                        <td className={`border border-gray-400 px-2 py-1 text-center text-xs font-bold ${getNumberColor(customer.current_iqd_balance || 0)}`}>
+                                            {formatNumberWithColor(customer.current_iqd_balance || 0).value}
                                         </td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
@@ -816,8 +816,8 @@ export default function CustomerStatement({ customer, transactions }) {
                                 {filterCurrency === 'usd' && (
                                     <tr className="bg-blue-50 border-b-2 border-blue-300">
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs font-bold">دولار</td>
-                                        <td className="border border-gray-400 px-2 py-1 text-center text-xs font-bold text-blue-600">
-                                            {formatNumber(customer.current_usd_balance || 0)}
+                                        <td className={`border border-gray-400 px-2 py-1 text-center text-xs font-bold ${getNumberColor(customer.current_usd_balance || 0)}`}>
+                                            {formatNumberWithColor(customer.current_usd_balance || 0).value}
                                         </td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
