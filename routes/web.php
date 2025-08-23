@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\Customer\CustomerAuthController;
+use App\Http\Controllers\Customer\CustomerDashboardController;
 use App\Http\Controllers\OpeningBalanceController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\RafidainBankController;
@@ -342,4 +344,22 @@ Route::prefix('api')->group(function () {
     // API للعملاء - الموظف
     Route::get('/employee/customers/search', [EmployeeCustomerController::class, 'apiSearch'])->name('api.employee.customers.search');
     Route::post('/employee/customers', [EmployeeCustomerController::class, 'apiStore'])->name('api.employee.customers.store');
+});
+
+// مسارات العملاء
+Route::prefix('customer')->name('customer.')->group(function () {
+    // توجيه المسار الأساسي إلى صفحة تسجيل الدخول
+    Route::get('/', function () {
+        return redirect()->route('customer.login');
+    });
+
+    // مسارات بدون تسجيل دخول
+    Route::get('/login', [CustomerAuthController::class, 'showLogin'])->name('login');
+    Route::post('/login', [CustomerAuthController::class, 'login']);
+
+    // مسارات تتطلب تسجيل دخول
+    Route::middleware('customer.auth')->group(function () {
+        Route::get('/dashboard', [CustomerDashboardController::class, 'index'])->name('dashboard');
+        Route::post('/logout', [CustomerAuthController::class, 'logout'])->name('logout');
+    });
 });
