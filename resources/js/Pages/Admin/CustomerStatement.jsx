@@ -367,201 +367,288 @@ export default function CustomerStatement({ customer, transactions }) {
         printWindow.document.close();
     };
 
-    // دالة تحويل إلى PDF وإرسال عبر الواتساب
-    const handleWhatsAppPDF = async () => {
-        try {
-            // إنشاء عنصر HTML للتحويل إلى PDF
-            const element = document.createElement('div');
-            element.innerHTML = `
-                <div style="font-family: 'Arial', sans-serif; direction: rtl; padding: 20px; color: #000; background: white; min-height: 100vh; font-size: 14px;">
-                    <!-- عنوان الصفحة -->
-                    <h2 style="text-align: center; margin-bottom: 20px; color: #000; font-size: 18px; font-weight: bold;">
-                        كشف حساب العميل: ${customer.name || 'غير محدد'}
-                    </h2>
+    // دالة تحميل PDF
+    const handleDownloadPDF = () => {
+        // إنشاء نافذة جديدة للطباعة/PDF
+        const printWindow = window.open('', '_blank', 'width=800,height=600');
 
+        // إنشاء محتوى HTML للطباعة/PDF
+        const printContent = `
+            <!DOCTYPE html>
+            <html dir="rtl" lang="ar">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>كشف حساب العميل - ${customer.name}</title>
+                <style>
+                    * {
+                        margin: 0;
+                        padding: 0;
+                        box-sizing: border-box;
+                        font-family: 'Arial', sans-serif;
+                    }
+
+                    body {
+                        font-size: 12px;
+                        line-height: 1.4;
+                        color: #000;
+                        background: white;
+                        direction: rtl;
+                    }
+
+                    .container {
+                        width: 100%;
+                        max-width: 210mm;
+                        margin: 0 auto;
+                        padding: 10mm;
+                    }
+
+                    .positive-amount {
+                        color: #059669 !important;
+                        font-weight: bold;
+                    }
+
+                    .negative-amount {
+                        color: #DC2626 !important;
+                        font-weight: bold;
+                    }
+
+                    .zero-amount {
+                        color: #1F2937 !important;
+                    }
+
+                    .header {
+                        border: 2px solid #000;
+                        margin-bottom: 10px;
+                    }
+
+                    .header-row {
+                        display: grid;
+                        grid-template-columns: 1fr auto 1fr auto 2fr auto;
+                        border-bottom: 1px solid #000;
+                    }
+
+                    .header-cell {
+                        padding: 8px;
+                        text-align: center;
+                        border-left: 1px solid #000;
+                        font-weight: normal;
+                    }
+
+                    .header-cell:last-child {
+                        border-left: none;
+                    }
+
+                    .header-cell.highlight {
+                        background-color: #f5f5f5;
+                        font-weight: bold;
+                    }
+
+                    table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        border: 2px solid #000;
+                        font-size: 11px;
+                    }
+
+                    th, td {
+                        border: 1px solid #000;
+                        padding: 4px 2px;
+                        text-align: center;
+                        vertical-align: middle;
+                    }
+
+                    th {
+                        background-color: #f5f5f5;
+                        font-weight: bold;
+                        font-size: 12px;
+                    }
+
+                    .opening-balance {
+                        background-color: #e3f2fd;
+                        font-weight: bold;
+                    }
+
+                    .even-row {
+                        background-color: #f9f9f9;
+                    }
+
+                    @page {
+                        size: A4 landscape;
+                        margin: 10mm 15mm;
+                    }
+
+                    @media print {
+                        .container {
+                            max-width: none;
+                            margin: 0;
+                            padding: 0;
+                        }
+
+                        body {
+                            font-size: 11px;
+                        }
+
+                        table {
+                            font-size: 10px;
+                        }
+
+                        th {
+                            font-size: 11px;
+                            font-weight: bold;
+                        }
+
+                        .header {
+                            font-size: 12px;
+                            margin-bottom: 15px;
+                        }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
                     <!-- ترويسة الكشف -->
-                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; border: 2px solid #000;">
-                        <tr>
-                            <td style="padding: 10px; border: 1px solid #000; text-align: center; background-color: #f0f0f0; font-weight: bold; width: 16.66%;">الاسم</td>
-                            <td style="padding: 10px; border: 1px solid #000; text-align: center; width: 16.66%;">${customer.name || 'غير محدد'}</td>
-                            <td style="padding: 10px; border: 1px solid #000; text-align: center; background-color: #f0f0f0; font-weight: bold; width: 16.66%;">من تاريخ</td>
-                            <td style="padding: 10px; border: 1px solid #000; text-align: center; width: 16.66%;">${dateFrom || '2025-01-01'}</td>
-                            <td style="padding: 10px; border: 1px solid #000; text-align: center; background-color: #f0f0f0; font-weight: bold; width: 16.66%;">إلى تاريخ</td>
-                            <td style="padding: 10px; border: 1px solid #000; text-align: center; width: 16.66%;">${dateTo || new Date().toISOString().split('T')[0]}</td>
-                        </tr>
-                    </table>
-
-                    <!-- جدول البيانات -->
-                    <table style="width: 100%; border-collapse: collapse; border: 2px solid #000; font-size: 12px;">
-                        <thead>
-                            <tr style="background-color: #f0f0f0;">
-                                <th style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">العملة</th>
-                                <th style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">الرصيد</th>
-                                <th style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">الصادر</th>
-                                <th style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">الوارد</th>
-                                <th style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">نوع الحركة</th>
-                                <th style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">الملاحظات</th>
-                                <th style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">رقم القائمة</th>
-                                <th style="border: 1px solid #000; padding: 8px; text-align: center; font-weight: bold;">تاريخ الحركة</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${filterCurrency === 'iqd' && customer.iqd_opening_balance ? `
-                            <tr style="background-color: #e8f5e8;">
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold;">دينار</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold;">${formatNumber(customer.iqd_opening_balance)}</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">-</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">-</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold;">رصيد افتتاحي</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">الرصيد الافتتاحي بالدينار العراقي</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">-</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">-</td>
-                            </tr>
-                            ` : ''}
-                            ${filterCurrency === 'usd' && customer.usd_opening_balance ? `
-                            <tr style="background-color: #e3f2fd;">
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold;">دولار</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold;">${formatNumber(customer.usd_opening_balance)}</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">-</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">-</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold;">رصيد افتتاحي</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">الرصيد الافتتاحي بالدولار الأمريكي</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">-</td>
-                                <td style="border: 1px solid #000; padding: 6px; text-align: center;">-</td>
-                            </tr>
-                            ` : ''}
-
-                            ${transactionsWithBalance && transactionsWithBalance.length > 0 ? transactionsWithBalance.map((transaction, index) => `
-                                <tr style="background-color: ${index % 2 === 0 ? '#ffffff' : '#f9f9f9'};">
-                                    <td style="border: 1px solid #000; padding: 6px; text-align: center;">${transaction.currency_type === 'iqd' ? 'دينار' : 'دولار'}</td>
-                                    <td style="border: 1px solid #000; padding: 6px; text-align: center; font-weight: bold;">${transaction.currency_type === 'iqd'
-                                        ? formatNumber(transaction.runningBalanceIQD || 0)
-                                        : formatNumber(transaction.runningBalanceUSD || 0)
-                                    }</td>
-                                    <td style="border: 1px solid #000; padding: 6px; text-align: center;">${transaction.transaction_type === 'delivered' ? formatNumber(transaction.amount || 0) : '0'}</td>
-                                    <td style="border: 1px solid #000; padding: 6px; text-align: center;">${transaction.transaction_type === 'received' ? formatNumber(transaction.amount || 0) : '0'}</td>
-                                    <td style="border: 1px solid #000; padding: 6px; text-align: center;">${transaction.transaction_type === 'received' ? 'قبض' : 'صرف'}</td>
-                                    <td style="border: 1px solid #000; padding: 6px; text-align: center;">${extractDescription(transaction.description || transaction.notes)}</td>
-                                    <td style="border: 1px solid #000; padding: 6px; text-align: center;">${transaction.transaction_code || '-'}</td>
-                                    <td style="border: 1px solid #000; padding: 6px; text-align: center;">${formatDate(transaction.transaction_date) || '-'}</td>
-                                </tr>
-                            `).join('') : `
-                                <tr>
-                                    <td colspan="8" style="border: 1px solid #000; padding: 20px; text-align: center; color: #666;">
-                                        لا توجد معاملات في الفترة المحددة
-                                    </td>
-                                </tr>
-                            `}
-                        </tbody>
-                    </table>
-
-                    <!-- الرصيد الحالي -->
-                    <div style="margin-top: 20px; padding: 15px; background-color: #f0f8ff; border: 2px solid #000; text-align: center;">
-                        <h3 style="margin: 0 0 10px 0; font-size: 16px; font-weight: bold; color: #000;">الرصيد الحالي</h3>
-                        <div style="font-size: 14px; font-weight: bold;" class="${getColorClass(filterCurrency === 'iqd' ? customer.current_iqd_balance : customer.current_usd_balance)}">
-                            ${filterCurrency === 'iqd'
-                                ? `${formatNumber(customer.current_iqd_balance || 0)} دينار عراقي`
-                                : `${formatNumber(customer.current_usd_balance || 0)} دولار أمريكي`
-                            }
+                    <div class="header">
+                        <div class="header-row">
+                            <div class="header-cell highlight">الاسم</div>
+                            <div class="header-cell">${customer.name}</div>
+                            <div class="header-cell">للتاريخ من</div>
+                            <div class="header-cell highlight">${dateFrom || '2025-01-01'}</div>
+                            <div class="header-cell">إلى</div>
+                            <div class="header-cell highlight">${dateTo || new Date().toISOString().split('T')[0]}</div>
                         </div>
                     </div>
 
-                    <!-- تاريخ الطباعة -->
-                    <div style="margin-top: 20px; text-align: center; font-size: 12px; color: #666;">
-                        تاريخ الطباعة: ${new Date().toLocaleDateString('en-GB')} - ${new Date().toLocaleTimeString('en-GB')}
-                    </div>
+                    <!-- جدول البيانات -->
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>العملة</th>
+                                <th>الرصيد</th>
+                                <th>الصادر</th>
+                                <th>الوارد</th>
+                                <th>نوع الحركة</th>
+                                <th>الملاحظات</th>
+                                <th>رقم القائمة</th>
+                                <th>تاريخ الحركة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- الرصيد الافتتاحي -->
+                            ${filterCurrency === 'iqd' ? `
+                            <tr class="opening-balance">
+                                <td>دينار</td>
+                                <td class="${getColorClass(customer.iqd_opening_balance || 0)}">${formatNumber(customer.iqd_opening_balance || 0)}</td>
+                                <td>-</td>
+                                <td>-</td>
+                                <td>رصيد افتتاحي</td>
+                                <td>الرصيد الافتتاحي بالدينار العراقي</td>
+                                <td>-</td>
+                                <td>-</td>
+                            </tr>
+                            ` : ''}
+                            ${filterCurrency === 'usd' ? `
+                            <tr class="opening-balance">
+                                <td>دولار</td>
+                                <td class="${getColorClass(customer.usd_opening_balance || 0)}">${formatNumber(customer.usd_opening_balance || 0)}</td>
+                                <td>-</td>
+                                <td>-</td>
+                                <td>رصيد افتتاحي</td>
+                                <td>الرصيد الافتتاحي بالدولار الأمريكي</td>
+                                <td>-</td>
+                                <td>-</td>
+                            </tr>
+                            ` : ''}
+
+                            <!-- المعاملات -->
+                            ${transactionsWithBalance.map((transaction, index) => `
+                                <tr class="${index % 2 === 0 ? 'even-row' : ''}">
+                                    <td>${transaction.currency_type === 'iqd' ? 'دينار' : 'دولار'}</td>
+                                    <td class="${getColorClass(transaction.currency_type === 'iqd' ? transaction.runningBalanceIQD : transaction.runningBalanceUSD)}">${transaction.currency_type === 'iqd'
+                                        ? formatNumber(transaction.runningBalanceIQD)
+                                        : formatNumber(transaction.runningBalanceUSD)
+                                    }</td>
+                                    <td class="${transaction.transaction_type === 'delivered' ? 'negative-amount' : ''}">${transaction.transaction_type === 'delivered' ? formatNumber(transaction.amount) : '0'}</td>
+                                    <td class="${transaction.transaction_type === 'received' ? 'positive-amount' : ''}">${transaction.transaction_type === 'received' ? formatNumber(transaction.amount) : '0'}</td>
+                                    <td>${transaction.transaction_type === 'received' ? 'قبض' : 'صرف'}</td>
+                                    <td>${extractDescription(transaction.description || transaction.notes)}</td>
+                                    <td>${transaction.transaction_code}</td>
+                                    <td>${formatDate(transaction.transaction_date)}</td>
+                                </tr>
+                            `).join('')}
+
+                            ${transactionsWithBalance.length === 0 ? `
+                                <tr>
+                                    <td colspan="8" style="padding: 20px; color: #666;">
+                                        لا توجد معاملات في الفترة المحددة
+                                    </td>
+                                </tr>
+                            ` : ''}
+
+                            <!-- الرصيد الحالي -->
+                            ${filterCurrency === 'iqd' ? `
+                            <tr style="background-color: #e8f5e8; border-top: 2px solid #059669;">
+                                <td style="font-weight: bold;">دينار</td>
+                                <td class="${getColorClass(customer.current_iqd_balance || 0)}" style="font-weight: bold;">${formatNumber(customer.current_iqd_balance || 0)}</td>
+                                <td>-</td>
+                                <td>-</td>
+                                <td style="font-weight: bold;">رصيد حالي</td>
+                                <td>الرصيد الحالي بالدينار العراقي</td>
+                                <td>-</td>
+                                <td>-</td>
+                            </tr>
+                            ` : ''}
+                            ${filterCurrency === 'usd' ? `
+                            <tr style="background-color: #e3f2fd; border-top: 2px solid #1976d2;">
+                                <td style="font-weight: bold;">دولار</td>
+                                <td class="${getColorClass(customer.current_usd_balance || 0)}" style="font-weight: bold;">${formatNumber(customer.current_usd_balance || 0)}</td>
+                                <td>-</td>
+                                <td>-</td>
+                                <td style="font-weight: bold;">رصيد حالي</td>
+                                <td>الرصيد الحالي بالدولار الأمريكي</td>
+                                <td>-</td>
+                                <td>-</td>
+                            </tr>
+                            ` : ''}
+                        </tbody>
+                    </table>
                 </div>
-            `;            // إضافة العنصر إلى الصفحة مؤقتاً (مرئي للتحقق من التحويل)
-            element.style.position = 'fixed';
-            element.style.top = '0';
-            element.style.left = '0';
-            element.style.width = '100vw';
-            element.style.height = '100vh';
-            element.style.backgroundColor = 'white';
-            element.style.zIndex = '9999';
-            element.style.overflow = 'auto';
-            document.body.appendChild(element);
 
-            // انتظار قليل للتأكد من تحميل العنصر
-            await new Promise(resolve => setTimeout(resolve, 1000));
+                <script>
+                    // عرض خيارات حفظ PDF والطباعة
+                    window.onload = function() {
+                        // إضافة أزرار للمستخدم
+                        const buttonContainer = document.createElement('div');
+                        buttonContainer.style.cssText = 'position: fixed; top: 10px; right: 10px; z-index: 10000; background: white; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-family: Arial;';
+                        buttonContainer.innerHTML = \`
+                            <button onclick="window.print()" style="margin: 5px; padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">طباعة</button>
+                            <button onclick="saveAsPDF()" style="margin: 5px; padding: 8px 15px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;">حفظ PDF</button>
+                            <button onclick="window.close()" style="margin: 5px; padding: 8px 15px; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer;">إغلاق</button>
+                        \`;
+                        document.body.appendChild(buttonContainer);
+                    };
 
-            // إعدادات PDF محسنة
-            const options = {
-                margin: [5, 5, 5, 5],
-                filename: `كشف_حساب_${customer.name}_${new Date().toLocaleDateString('en-GB').replace(/\//g, '-')}.pdf`,
-                image: {
-                    type: 'jpeg',
-                    quality: 1.0
-                },
-                html2canvas: {
-                    scale: 1.5,
-                    useCORS: true,
-                    allowTaint: true,
-                    backgroundColor: '#ffffff',
-                    logging: true,
-                    letterRendering: true,
-                    scrollX: 0,
-                    scrollY: 0
-                },
-                jsPDF: {
-                    unit: 'mm',
-                    format: 'a4',
-                    orientation: 'landscape',
-                    putOnlyUsedFonts: true,
-                    floatPrecision: 16
-                }
-            };
+                    function saveAsPDF() {
+                        // إخفاء الأزرار قبل الطباعة
+                        const buttons = document.querySelector('div[style*="position: fixed"]');
+                        if (buttons) buttons.style.display = 'none';
 
-            // تحويل إلى PDF وتحميل
-            console.log('بدء تحويل PDF...');
+                        // طباعة (سيفتح حوار الطباعة حيث يمكن اختيار "حفظ كـ PDF")
+                        window.print();
 
-            // إضافة زر إغلاق مؤقت
-            const closeBtn = document.createElement('button');
-            closeBtn.innerHTML = 'إغلاق المعاينة';
-            closeBtn.style.position = 'fixed';
-            closeBtn.style.top = '10px';
-            closeBtn.style.right = '10px';
-            closeBtn.style.zIndex = '10000';
-            closeBtn.style.padding = '10px 20px';
-            closeBtn.style.backgroundColor = '#dc3545';
-            closeBtn.style.color = 'white';
-            closeBtn.style.border = 'none';
-            closeBtn.style.borderRadius = '5px';
-            closeBtn.style.cursor = 'pointer';
-            closeBtn.onclick = () => {
-                document.body.removeChild(element);
-                document.body.removeChild(closeBtn);
-            };
-            document.body.appendChild(closeBtn);
+                        // إظهار الأزرار مرة أخرى
+                        setTimeout(() => {
+                            if (buttons) buttons.style.display = 'block';
+                        }, 1000);
+                    }
+                </script>
+            </body>
+            </html>
+        `;
 
-            await html2pdf().set(options).from(element).save();
-
-            console.log('تم إنتاج PDF بنجاح');
-
-            // إزالة العناصر المؤقتة
-            setTimeout(() => {
-                if (document.body.contains(element)) {
-                    document.body.removeChild(element);
-                }
-                if (document.body.contains(closeBtn)) {
-                    document.body.removeChild(closeBtn);
-                }
-            }, 2000);
-
-            // فتح الواتساب مع رسالة
-            const message = `تم إنشاء ملف PDF لكشف حساب العميل: ${customer.name}\nيرجى إرفاق الملف المحمل مع هذه الرسالة`;
-            const encodedMessage = encodeURIComponent(message);
-            const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
-
-            // انتظار قليل ثم فتح الواتساب
-            setTimeout(() => {
-                window.open(whatsappUrl, '_blank');
-            }, 1000);
-
-        } catch (error) {
-            console.error('خطأ في تحويل PDF:', error);
-            alert('حدث خطأ في تحويل الملف إلى PDF. يرجى المحاولة مرة أخرى.');
-        }
+        // كتابة المحتوى في النافذة الجديدة
+        printWindow.document.write(printContent);
+        printWindow.document.close();
     };    return (
         <AdminLayout title={`كشف حساب العميل: ${customer.name}`}>
             <div className="space-y-6">
@@ -653,13 +740,13 @@ export default function CustomerStatement({ customer, transactions }) {
                                     طباعة
                                 </button>
                                 <button
-                                    onClick={handleWhatsAppPDF}
-                                    className="bg-green-500 hover:bg-green-600 text-white px-3 sm:px-4 py-2 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-xs sm:text-sm"
+                                    onClick={handleDownloadPDF}
+                                    className="bg-red-500 hover:bg-red-600 text-white px-3 sm:px-4 py-2 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-xs sm:text-sm"
                                 >
-                                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.304"/>
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                     </svg>
-                                    واتساب
+                                    تحميل PDF
                                 </button>
                             </div>
                         </div>
