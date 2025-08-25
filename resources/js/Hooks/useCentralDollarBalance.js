@@ -5,8 +5,13 @@ export const useCentralDollarBalance = (initialBalance = 0) => {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
-    // جلب الرصيد الحالي من الخادم
+    // جلب الرصيد الحالي من الخادم مع error handling محسن
     const fetchCurrentDollarBalance = async () => {
+        // تجنب multiple requests في نفس الوقت
+        if (isLoading) {
+            return centralDollarBalance;
+        }
+
         setIsLoading(true);
         setError(null);
 
@@ -16,20 +21,32 @@ export const useCentralDollarBalance = (initialBalance = 0) => {
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
-                }
+                },
+                // إضافة timeout لتجنب التعليق
+                signal: AbortSignal.timeout(10000) // 10 ثواني timeout
             });
 
             if (response.ok) {
                 const data = await response.json();
-                setCentralDollarBalance(data.current_balance || 0);
-                return data.current_balance || 0;
+                const newBalance = parseFloat(data.current_balance) || 0;
+                setCentralDollarBalance(newBalance);
+                return newBalance;
             } else {
-                throw new Error('فشل في جلب رصيد الدولار');
+                console.warn('فشل في جلب رصيد الدولار، سيتم استخدام القيمة الحالية');
+                setError('فشل في تحديث الرصيد');
+                return centralDollarBalance;
             }
         } catch (err) {
             console.error('Error fetching dollar balance:', err);
-            setError(err.message);
-            return centralDollarBalance; // إرجاع الرصيد الحالي في حالة الخطأ
+            if (err.name === 'TimeoutError') {
+                setError('انتهت مهلة الاتصال');
+            } else if (err.name === 'AbortError') {
+                setError('تم إلغاء الطلب');
+            } else {
+                setError(err.message || 'خطأ في الشبكة');
+            }
+            // إرجاع الرصيد الحالي في حالة الخطأ بدلاً من undefined
+            return centralDollarBalance;
         } finally {
             setIsLoading(false);
         }

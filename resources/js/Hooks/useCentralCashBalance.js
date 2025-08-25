@@ -18,15 +18,31 @@ export function useCentralCashBalance(initialCashBalance = 0) {
     const fetchCurrentCashBalance = async () => {
         try {
             setIsUpdating(true);
-            // استخدام current page reload بدلاً من API call
-            // لأن Laravel controllers ترسل البيانات مباشرة للصفحة
-            window.location.reload();
+            // استخدام API call بدلاً من reload لتجنب مشاكل الأداء
+            const response = await fetch('/api/employee/cash-balance/current', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                const newBalance = parseFloat(data.current_balance) || 0;
+                setCentralCashBalance(newBalance);
+                return newBalance;
+            } else {
+                console.warn('فشل في جلب الرصيد، سيتم استخدام القيمة الحالية');
+                return centralCashBalance;
+            }
         } catch (error) {
             console.error('خطأ في جلب الرصيد النقدي المركزي:', error);
+            // في حالة الخطأ، نحتفظ بالقيمة الحالية بدلاً من reload
+            return centralCashBalance;
         } finally {
             setIsUpdating(false);
         }
-        return centralCashBalance;
     };
 
     // تحديث الرصيد بعد المعاملة

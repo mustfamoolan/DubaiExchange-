@@ -117,15 +117,20 @@ export default function Buy({
         setFormData(prev => ({ ...prev, documentNumber: referenceNumber }));
     }, [referenceNumber]);
 
-    // مراقبة التغييرات في الرصيد والمبالغ للتحقق الفوري
+    // مراقبة التغييرات في الرصيد والمبالغ للتحقق الفوري - محسن ومحدود
     useEffect(() => {
-        // فقط لإجبار React على إعادة التحقق من الدوال
-        const dollarAmount = parseFloat(formData.dollarAmount || 0);
-        const exchangeRate = parseFloat(formData.exchangeRate || 0);
-        const totalCost = dollarAmount * exchangeRate;
+        // التحقق من صحة البيانات فقط عند الحاجة
+        if (formData.dollarAmount || formData.exchangeRate) {
+            const dollarAmount = parseFloat(formData.dollarAmount || 0);
+            const exchangeRate = parseFloat(formData.exchangeRate || 0);
 
-        // لا نحتاج لعمل شيء، فقط لإجبار React على إعادة الحساب
-    }, [formData.dollarAmount, formData.exchangeRate, centralCashBalance]);
+            // لا نقوم بأي عمليات مكلفة هنا، فقط التحديث الضروري
+            if (dollarAmount > 0 && exchangeRate > 0) {
+                // يمكن إضافة منطق خفيف هنا إذا لزم الأمر
+            }
+        }
+        // تجنب إضافة centralCashBalance في dependency array لمنع re-renders مستمرة
+    }, [formData.dollarAmount, formData.exchangeRate]);
 
     // حساب العمولة التلقائي - تم إلغاؤه ليبدأ بصفر
     // useEffect(() => {
@@ -176,13 +181,8 @@ export default function Buy({
         const cleanValue = removeCommas(value);
         setFormData(prev => ({ ...prev, [field]: cleanValue }));
 
-        // إعادة تحديث الواجهة فوراً عند تغيير المبلغ أو سعر الصرف
-        if (field === 'dollarAmount' || field === 'exchangeRate') {
-            // إجبار React على إعادة الرسم
-            setTimeout(() => {
-                // لا نحتاج لعمل شيء، فقط لإجبار React على إعادة التحقق
-            }, 0);
-        }
+        // إزالة setTimeout غير الضروري لتحسين الأداء
+        // التحديث سيحدث تلقائياً عبر React's state management
     };
 
     // معالج خاص للمدخلات الرقمية مع الفواصل
@@ -190,10 +190,7 @@ export default function Buy({
         const cleanValue = removeCommas(value);
         setFormData(prev => ({ ...prev, [field]: cleanValue }));
 
-        // إعادة تحديث الواجهة فوراً عند تغيير المبلغ أو سعر الصرف
-        if (field === 'dollarAmount' || field === 'exchangeRate') {
-            setTimeout(() => {}, 0);
-        }
+        // إزالة setTimeout غير الضروري - React سيتولى التحديث
     };
 
     // حساب المبلغ بالدينار العراقي

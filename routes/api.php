@@ -28,6 +28,12 @@ Route::middleware(['web'])->group(function () {
         Route::post('/initialize', [CashBalanceController::class, 'initializeBalance']);
     });
 
+    // مسارات رصيد النقد للموظفين
+    Route::prefix('employee/cash-balance')->group(function () {
+        Route::get('/current', [CashBalanceController::class, 'getCurrentBalance']);
+        Route::get('/stats', [CashBalanceController::class, 'getStats']);
+    });
+
     // مسارات رصيد الدولار المركزي
     Route::prefix('employee/dollar-balance')->group(function () {
         Route::get('/current', [DollarBalanceController::class, 'getCurrentBalance']);
