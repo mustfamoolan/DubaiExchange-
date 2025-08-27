@@ -1,0 +1,1 @@
+import{j as e,H as r}from"./app-DlBU8k81.js";function n({children:s,title:a="DubaiExchange"}){return e.jsxs("div",{className:"min-h-screen bg-gray-50",children:[e.jsx(r,{title:a}),e.jsx("div",{className:"relative min-h-screen",children:s})]})}export{n as G};
