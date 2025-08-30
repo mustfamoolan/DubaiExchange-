@@ -71,10 +71,9 @@ class RafidainBankController extends Controller
 
         $currentBalance = $rafidainBalance - $totalCharges + $totalPayments;
 
-        // Get recent transactions
+        // Get all transactions for user
         $transactions = RafidainTransaction::where('user_id', $sessionUser['id'])
             ->orderBy('created_at', 'desc')
-            ->limit(10)
             ->get();
 
         // Calculate totals for quick report

@@ -19,12 +19,14 @@ export default function RafidainBank({
 }) {
     const [balance, setBalance] = useState(currentBalance);
     const [activeTab, setActiveTab] = useState('charge'); // 'charge' or 'payment'
-    const [showDetailedReport, setShowDetailedReport] = useState(false);
+    const [showTransactionsLog, setShowTransactionsLog] = useState(false);
     const [todayReport, setTodayReport] = useState({
         charges: quickReport.charges,
         payments: quickReport.payments,
         operations: quickReport.operations
     });
+    // تشخيص: طباعة الحركات في الـ console
+    console.log('transactions:', transactions);
 
     // استخدام hook الرصيد النقدي المركزي
     const {
@@ -156,36 +158,9 @@ export default function RafidainBank({
         return commission > 0 ? amount + commission : amount;
     };
 
-    // إضافة state للتقرير المفصل
-    const [detailedReportData, setDetailedReportData] = useState(null);
-
-    // جلب التقرير المفصل
-    const fetchDetailedReport = async () => {
-        try {
-            const response = await fetch('/employee/rafidain/detailed-report', {
-                method: 'GET',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                }
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                setDetailedReportData(result.report);
-                return result.report;
-            }
-        } catch (error) {
-            console.error('Error fetching detailed report:', error);
-        }
-        return null;
-    };
-
-    // عرض التقرير المفصل
-    const handleDetailedReport = async () => {
-        const reportData = await fetchDetailedReport();
-        if (reportData) {
-            setShowDetailedReport(true);
-        }
+    // عرض سجل الحركات
+    const handleShowTransactionsLog = () => {
+        setShowTransactionsLog(true);
     };
 
     // إرسال المعاملة
@@ -391,12 +366,12 @@ export default function RafidainBank({
                                 </div>
                             </div>
 
-                            {/* زر التقرير المفصل */}
+                            {/* زر سجل الحركات */}
                             <button
-                                onClick={handleDetailedReport}
-                                className="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors duration-200 mt-6"
+                                onClick={handleShowTransactionsLog}
+                                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors duration-200 mt-6"
                             >
-                                تقرير مفصل
+                                عرض سجل الحركات
                             </button>
                         </div>
                     </div>
@@ -572,190 +547,61 @@ export default function RafidainBank({
                 </div>
 
                 {/* نافذة التقرير المفصل */}
-                {showDetailedReport && (
+                {showTransactionsLog && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white rounded-2xl shadow-xl max-w-5xl w-full max-h-[95vh] overflow-y-auto">
-                            {/* رأس النافذة */}
-                            <div className="bg-gradient-to-r from-green-500 to-green-600 px-6 py-4 rounded-t-2xl">
+                        <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto">
+                            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4 rounded-t-2xl">
                                 <div className="flex justify-between items-center">
                                     <h2 className="text-xl font-bold text-white flex items-center">
-                                        <span className="text-2xl mr-3">📊</span>
-                                        التقرير المفصل - مصرف الرافدين
+                                        <span className="text-2xl mr-3">�</span>
+                                        سجل الحركات - مصرف الرافدين
                                     </h2>
                                     <button
-                                        onClick={() => setShowDetailedReport(false)}
+                                        onClick={() => setShowTransactionsLog(false)}
                                         className="text-white hover:text-gray-200 text-3xl font-bold transition-colors duration-200"
                                     >
                                         ×
                                     </button>
                                 </div>
                             </div>
-
-                            {/* محتوى التقرير */}
                             <div className="p-6 bg-gray-50">
-                                {/* معلومات الموظف */}
-                                <div className="bg-white rounded-xl p-6 mb-6 shadow-sm border">
-                                    <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-                                        <span className="text-xl mr-2">👤</span>
-                                        معلومات الموظف
-                                    </h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="flex items-center space-x-3 space-x-reverse">
-                                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                                <span className="text-blue-600 font-bold">👨‍💼</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-sm text-gray-600">اسم الموظف:</span>
-                                                <p className="font-semibold text-gray-800">{user?.name || 'غير محدد'}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center space-x-3 space-x-reverse">
-                                            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                                                <span className="text-green-600 font-bold">📅</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-sm text-gray-600">تاريخ التقرير:</span>
-                                                <p className="font-semibold text-gray-800">{new Date().toLocaleDateString('en-US')}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* إحصائيات شاملة */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                                    {/* الرصيد الافتتاحي */}
-                                    <div className="bg-white rounded-xl p-6 border border-blue-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-                                        <div className="text-center">
-                                            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                                <span className="text-2xl">🏦</span>
-                                            </div>
-                                            <h4 className="text-sm font-semibold text-blue-700 mb-2">الرصيد الافتتاحي</h4>
-                                            <p className="text-2xl font-bold text-blue-800">
-                                                {detailedReportData ? Math.floor(detailedReportData.opening_balance).toLocaleString('en-US') : '0'}
-                                            </p>
-                                            <p className="text-xs text-blue-600 mt-1">د.ع</p>
-                                        </div>
-                                    </div>
-
-                                    {/* الرصيد المتبقي */}
-                                    <div className="bg-white rounded-xl p-6 border border-green-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-                                        <div className="text-center">
-                                            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                                <span className="text-2xl">💰</span>
-                                            </div>
-                                            <h4 className="text-sm font-semibold text-green-700 mb-2">الرصيد المتبقي</h4>
-                                            <p className="text-2xl font-bold text-green-800">
-                                                {detailedReportData ? Math.floor(detailedReportData.current_balance).toLocaleString('en-US') : Math.floor(balance).toLocaleString('en-US')}
-                                            </p>
-                                            <p className="text-xs text-green-600 mt-1">د.ع</p>
-                                        </div>
-                                    </div>
-
-                                    {/* إجمالي العمليات */}
-                                    <div className="bg-white rounded-xl p-6 border border-purple-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-                                        <div className="text-center">
-                                            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                                                <span className="text-2xl">📈</span>
-                                            </div>
-                                            <h4 className="text-sm font-semibold text-purple-700 mb-2">إجمالي العمليات</h4>
-                                            <p className="text-2xl font-bold text-purple-800">
-                                                {detailedReportData ? detailedReportData.total_operations : todayReport.operations}
-                                            </p>
-                                            <p className="text-xs text-purple-600 mt-1">عملية</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* تفاصيل العمليات */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                                    {/* عمليات الشحن */}
-                                    <div className="bg-white rounded-xl p-6 border border-red-200 shadow-sm">
-                                        <h4 className="text-lg font-semibold text-red-800 mb-4 flex items-center">
-                                            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
-                                                <span className="text-red-600">💸</span>
-                                            </div>
-                                            عمليات الشحن
-                                        </h4>
-                                        <div className="space-y-4">
-                                            <div className="bg-red-50 rounded-lg p-3">
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-sm text-red-600">إجمالي المبلغ:</span>
-                                                    <span className="font-bold text-red-800 text-lg">
-                                                        {detailedReportData ? Math.floor(detailedReportData.total_charges).toLocaleString('en-US') : Math.floor(todayReport.charges).toLocaleString('en-US')} د.ع
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="bg-red-50 rounded-lg p-3">
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-sm text-red-600">عدد العمليات:</span>
-                                                    <span className="font-bold text-red-800 text-lg">
-                                                        {detailedReportData ? detailedReportData.charge_count : Math.floor(todayReport.operations * (todayReport.charges / (todayReport.charges + todayReport.payments || 1)))} عملية
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* عمليات الدفع */}
-                                    <div className="bg-white rounded-xl p-6 border border-green-200 shadow-sm">
-                                        <h4 className="text-lg font-semibold text-green-800 mb-4 flex items-center">
-                                            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                                                <span className="text-green-600">💰</span>
-                                            </div>
-                                            عمليات الدفع
-                                        </h4>
-                                        <div className="space-y-4">
-                                            <div className="bg-green-50 rounded-lg p-3">
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-sm text-green-600">إجمالي المبلغ:</span>
-                                                    <span className="font-bold text-green-800 text-lg">
-                                                        {detailedReportData ? Math.floor(detailedReportData.total_payments).toLocaleString('en-US') : Math.floor(todayReport.payments).toLocaleString('en-US')} د.ع
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="bg-green-50 rounded-lg p-3">
-                                                <div className="flex justify-between items-center">
-                                                    <span className="text-sm text-green-600">عدد العمليات:</span>
-                                                    <span className="font-bold text-green-800 text-lg">
-                                                        {detailedReportData ? detailedReportData.payment_count : Math.floor(todayReport.operations * (todayReport.payments / (todayReport.charges + todayReport.payments || 1)))} عملية
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* معلومات العمولة */}
-                                <div className="bg-white rounded-xl p-6 border border-yellow-200 shadow-sm mb-6">
-                                    <h4 className="text-lg font-semibold text-yellow-800 mb-4 flex items-center">
-                                        <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center mr-3">
-                                            <span className="text-yellow-600">💳</span>
-                                        </div>
-                                        إجمالي العمولة
-                                    </h4>
-                                    <div className="bg-yellow-50 rounded-lg p-6">
-                                        <div className="text-center">
-                                            <p className="text-3xl font-bold text-yellow-800">
-                                                {detailedReportData ? Math.floor(detailedReportData.total_commission).toLocaleString('en-US') : Math.floor((todayReport.charges + todayReport.payments) * 0.01).toLocaleString('en-US')} د.ع
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* زر الإغلاق */}
-                                <div className="flex justify-center">
-                                    <button
-                                        onClick={() => setShowDetailedReport(false)}
-                                        className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-200 flex items-center shadow-lg"
-                                    >
-                                        <span className="mr-2">✖️</span>
-                                        إغلاق التقرير
-                                    </button>
-                                </div>
+                                <table className="min-w-full border-collapse">
+                                    <thead>
+                                        <tr className="bg-gray-100">
+                                            <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">الرقم المرجعي</th>
+                                            <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">نوع الحركة</th>
+                                            <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">المبلغ</th>
+                                            <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">العمولة</th>
+                                            <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">الرصيد بعد الحركة</th>
+                                            <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">ملاحظات</th>
+                                            <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">تاريخ الحركة</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {transactions.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={7} className="text-center py-6 text-gray-500">لا توجد حركات مسجلة</td>
+                                            </tr>
+                                        ) : (
+                                            transactions.map((tx, idx) => (
+                                                <tr key={tx.id || idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs">{tx.reference_number}</td>
+                                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs">{tx.transaction_type === 'charge' ? 'شحن' : 'دفع'}</td>
+                                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs font-bold text-green-700">{parseFloat(tx.amount).toLocaleString('en-US')}</td>
+                                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs text-blue-700">{parseFloat(tx.commission).toLocaleString('en-US')}</td>
+                                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs text-gray-800">{parseFloat(tx.new_balance).toLocaleString('en-US')}</td>
+                                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs">{tx.notes || '-'}</td>
+                                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs">{tx.created_at ? new Date(tx.created_at).toLocaleString('ar-EG') : '-'}</td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
                 )}
+            {/* نهاية نافذة سجل الحركات */}
 
                 {/* نافذة الفاتورة الحرارية */}
                 {showReceipt && receiptData && (
