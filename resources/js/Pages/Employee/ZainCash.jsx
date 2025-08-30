@@ -156,36 +156,10 @@ export default function ZainCash({
         return commission > 0 ? amount + commission : amount;
     };
 
-    // إضافة state للتقرير المفصل
-    const [detailedReportData, setDetailedReportData] = useState(null);
-
-    // جلب التقرير المفصل
-    const fetchDetailedReport = async () => {
-        try {
-            const response = await fetch('/employee/zain-cash/detailed-report', {
-                method: 'GET',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                }
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                setDetailedReportData(result.report);
-                return result.report;
-            }
-        } catch (error) {
-            console.error('Error fetching detailed report:', error);
-        }
-        return null;
-    };
-
-    // عرض التقرير المفصل
-    const handleDetailedReport = async () => {
-        const reportData = await fetchDetailedReport();
-        if (reportData) {
-            setShowDetailedReport(true);
-        }
+    // سجل الحركات
+    const [showTransactionsLog, setShowTransactionsLog] = useState(false);
+    const handleShowTransactionsLog = () => {
+        setShowTransactionsLog(true);
     };
 
     // إرسال المعاملة (حفظ فقط)
@@ -387,12 +361,12 @@ export default function ZainCash({
                                 </div>
                             </div>
 
-                            {/* زر التقرير المفصل */}
+                            {/* زر سجل الحركات */}
                             <button
-                                onClick={handleDetailedReport}
-                                className="w-full bg-purple-500 hover:bg-purple-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors duration-200 mt-6"
+                                onClick={handleShowTransactionsLog}
+                                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors duration-200 mt-6"
                             >
-                                تقرير مفصل
+                                عرض سجل الحركات
                             </button>
                         </div>
                     </div>
@@ -748,6 +722,62 @@ export default function ZainCash({
                                         إغلاق التقرير
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* نافذة سجل الحركات */}
+                {showTransactionsLog && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto">
+                            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-4 rounded-t-2xl">
+                                <div className="flex justify-between items-center">
+                                    <h2 className="text-xl font-bold text-white flex items-center">
+                                        <span className="text-2xl mr-3">📋</span>
+                                        سجل الحركات - زين كاش
+                                    </h2>
+                                    <button
+                                        onClick={() => setShowTransactionsLog(false)}
+                                        className="text-white hover:text-gray-200 text-3xl font-bold transition-colors duration-200"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="p-6 bg-gray-50">
+                                <table className="min-w-full border-collapse">
+                                    <thead>
+                                        <tr className="bg-gray-100">
+                                            <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">الرقم المرجعي</th>
+                                            <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">نوع الحركة</th>
+                                            <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">المبلغ</th>
+                                            <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">العمولة</th>
+                                            <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">الرصيد بعد الحركة</th>
+                                            <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">ملاحظات</th>
+                                            <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">تاريخ الحركة</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {transactions.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={7} className="text-center py-6 text-gray-500">لا توجد حركات مسجلة</td>
+                                            </tr>
+                                        ) : (
+                                            transactions.map((tx, idx) => (
+                                                <tr key={tx.id || idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs">{tx.reference_number}</td>
+                                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs">{tx.transaction_type === 'charge' ? 'شحن' : 'دفع'}</td>
+                                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs font-bold text-green-700">{parseFloat(tx.amount).toLocaleString('en-US')}</td>
+                                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs text-blue-700">{parseFloat(tx.commission).toLocaleString('en-US')}</td>
+                                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs text-gray-800">{parseFloat(tx.new_balance).toLocaleString('en-US')}</td>
+                                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs">{tx.notes || '-'}</td>
+                                                    <td className="border border-gray-400 px-2 py-1 text-center text-xs">{tx.created_at ? new Date(tx.created_at).toLocaleString('ar-EG') : '-'}</td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
