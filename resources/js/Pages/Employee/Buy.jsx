@@ -58,6 +58,14 @@ export default function Buy({
     const [referenceNumber, setReferenceNumber] = useState('');
     const [currentDateTime, setCurrentDateTime] = useState('');
 
+    // حالات التقرير المفصل
+    const [showDetailedReport, setShowDetailedReport] = useState(false);
+    const [detailedReportData, setDetailedReportData] = useState(null);
+    const [isLoadingReport, setIsLoadingReport] = useState(false);
+    const [reportCurrentPage, setReportCurrentPage] = useState(1);
+    const [reportPerPage] = useState(50);
+    const [reportTotalPages, setReportTotalPages] = useState(1);
+
     // استخدام hook الفواتير الحرارية
     const {
         showReceipt,
@@ -528,6 +536,73 @@ export default function Buy({
         router.visit('/employee/dashboard');
     };
 
+    // جلب التقرير المفصل
+    const fetchDetailedReport = async (page = 1) => {
+        setIsLoadingReport(true);
+        try {
+            const response = await fetch('/employee/buy/detailed-report', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                },
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    // تطبيق pagination على البيانات في الـ frontend
+                    const allTransactions = result.report.buy_transactions || [];
+                    const totalPages = Math.ceil(allTransactions.length / reportPerPage);
+                    const startIndex = (page - 1) * reportPerPage;
+                    const endIndex = startIndex + reportPerPage;
+                    const paginatedTransactions = allTransactions.slice(startIndex, endIndex);
+                    
+                    setDetailedReportData({
+                        ...result.report,
+                        buy_transactions: paginatedTransactions,
+                        all_transactions: allTransactions // احتفظ بجميع المعاملات
+                    });
+                    setReportTotalPages(totalPages);
+                    setReportCurrentPage(page);
+                } else {
+                    showError('خطأ', 'فشل في جلب التقرير المفصل');
+                }
+            } else {
+                showError('خطأ', 'فشل في جلب التقرير المفصل');
+            }
+        } catch (error) {
+            console.error('خطأ في جلب التقرير:', error);
+            showError('خطأ في الشبكة', 'تعذر الاتصال بالخادم');
+        } finally {
+            setIsLoadingReport(false);
+        }
+    };
+
+    // تغيير الصفحة
+    const handleReportPageChange = (newPage) => {
+        if (newPage >= 1 && newPage <= reportTotalPages && detailedReportData) {
+            const allTransactions = detailedReportData.all_transactions || [];
+            const startIndex = (newPage - 1) * reportPerPage;
+            const endIndex = startIndex + reportPerPage;
+            const paginatedTransactions = allTransactions.slice(startIndex, endIndex);
+            
+            setDetailedReportData({
+                ...detailedReportData,
+                buy_transactions: paginatedTransactions
+            });
+            setReportCurrentPage(newPage);
+        }
+    };
+
+    // عرض التقرير المفصل
+    const handleShowDetailedReport = async () => {
+        setShowDetailedReport(true);
+        if (!detailedReportData) {
+            await fetchDetailedReport(1);
+        }
+    };
+
     return (
         <EmployeeLayout title="شراء الدولار">
             <div className="max-w-7xl mx-auto">
@@ -635,7 +710,10 @@ export default function Buy({
                             </div>
 
                             {/* زر التقرير المفصل */}
-                            <button className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors duration-200 mt-6">
+                            <button 
+                                onClick={handleShowDetailedReport}
+                                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-4 rounded-xl transition-colors duration-200 mt-6"
+                            >
                                 تقرير مفصل
                             </button>
                         </div>
@@ -791,6 +869,221 @@ export default function Buy({
                 autoCloseDelay={notification.autoCloseDelay}
                 onClose={closeNotification}
             />
+
+            {/* نافذة التقرير المفصل */}
+            {showDetailedReport && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+                        {/* رأس النافذة */}
+                        <div className="bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-4 rounded-t-2xl">
+                            <div className="flex justify-between items-center">
+                                <h2 className="text-xl font-bold text-white flex items-center">
+                                    <span className="text-2xl mr-3">📊</span>
+                                    التقرير المفصل - عمليات الشراء
+                                </h2>
+                                <button
+                                    onClick={() => setShowDetailedReport(false)}
+                                    className="text-white hover:text-gray-200 text-3xl font-bold transition-colors duration-200"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* محتوى التقرير */}
+                        <div className="p-6 bg-gray-50">
+                            {isLoadingReport ? (
+                                <div className="flex items-center justify-center py-12">
+                                    <div className="text-center">
+                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600 mx-auto mb-4"></div>
+                                        <p className="text-gray-600">جاري تحميل التقرير...</p>
+                                    </div>
+                                </div>
+                            ) : detailedReportData ? (
+                                <div className="space-y-6">
+                                    {/* ملخص التقرير */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        <div className="bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-xl p-4 border border-cyan-200">
+                                            <div className="text-sm font-medium text-cyan-700 mb-1">الرصيد الافتتاحي (دولار)</div>
+                                            <div className="text-2xl font-bold text-cyan-900">
+                                                ${Math.floor(detailedReportData.opening_dollar_balance || 0).toLocaleString()}
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+                                            <div className="text-sm font-medium text-blue-700 mb-1">الرصيد الحالي (دولار)</div>
+                                            <div className="text-2xl font-bold text-blue-900">
+                                                ${Math.floor(detailedReportData.current_dollar_balance || 0).toLocaleString()}
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 border border-orange-200">
+                                            <div className="text-sm font-medium text-orange-700 mb-1">إجمالي الدولار المشتراة</div>
+                                            <div className="text-2xl font-bold text-orange-900">
+                                                ${Math.floor(detailedReportData.total_dollars_bought || 0).toLocaleString()}
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 border border-red-200">
+                                            <div className="text-sm font-medium text-red-700 mb-1">إجمالي الدينار المصروف</div>
+                                            <div className="text-2xl font-bold text-red-900">
+                                                {Math.floor(detailedReportData.total_iqd_spent || 0).toLocaleString()} د.ع
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+                                            <div className="text-sm font-medium text-purple-700 mb-1">الرصيد الافتتاحي (دينار)</div>
+                                            <div className="text-2xl font-bold text-purple-900">
+                                                {Math.floor(detailedReportData.opening_iqd_balance || 0).toLocaleString()} د.ع
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-4 border border-indigo-200">
+                                            <div className="text-sm font-medium text-indigo-700 mb-1">الرصيد الحالي (دينار)</div>
+                                            <div className="text-2xl font-bold text-indigo-900">
+                                                {Math.floor(detailedReportData.current_iqd_balance || 0).toLocaleString()} د.ع
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
+                                            <div className="text-sm font-medium text-green-700 mb-1">إجمالي العمولة</div>
+                                            <div className="text-2xl font-bold text-green-900">
+                                                {Math.floor(detailedReportData.total_commission || 0).toLocaleString()} د.ع
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
+                                            <div className="text-sm font-medium text-gray-700 mb-1">عدد العمليات</div>
+                                            <div className="text-2xl font-bold text-gray-900">
+                                                {detailedReportData.total_operations || 0}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* جدول المعاملات */}
+                                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                        <div className="bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-3 flex justify-between items-center">
+                                            <h3 className="text-lg font-bold text-white">تفاصيل عمليات الشراء</h3>
+                                            <div className="text-sm text-white">
+                                                إجمالي المعاملات: {detailedReportData.all_transactions?.length || 0}
+                                            </div>
+                                        </div>
+
+                                        <div className="overflow-x-auto">
+                                            <table className="min-w-full divide-y divide-gray-200">
+                                                <thead className="bg-gray-50">
+                                                    <tr>
+                                                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">رقم المرجع</th>
+                                                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">مبلغ الدولار</th>
+                                                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">سعر الصرف</th>
+                                                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">مبلغ الدينار</th>
+                                                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">المبلغ الكلي</th>
+                                                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">التاريخ</th>
+                                                        <th className="px-4 py-3 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">الملاحظات</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="bg-white divide-y divide-gray-200">
+                                                    {detailedReportData.buy_transactions && detailedReportData.buy_transactions.length > 0 ? (
+                                                        detailedReportData.buy_transactions.map((transaction, index) => (
+                                                            <tr key={index} className="hover:bg-gray-50 transition-colors duration-150">
+                                                                <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                                                    {transaction.reference_number || '-'}
+                                                                </td>
+                                                                <td className="px-4 py-3 whitespace-nowrap text-sm text-cyan-700 font-semibold">
+                                                                    ${Math.floor(transaction.dollar_amount || 0).toLocaleString()}
+                                                                </td>
+                                                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-700">
+                                                                    {Math.floor(transaction.exchange_rate || 0).toLocaleString()}
+                                                                </td>
+                                                                <td className="px-4 py-3 whitespace-nowrap text-sm text-orange-700 font-semibold">
+                                                                    {Math.floor(transaction.iqd_amount || 0).toLocaleString()} د.ع
+                                                                </td>
+                                                                <td className="px-4 py-3 whitespace-nowrap text-sm text-red-700 font-semibold">
+                                                                    {Math.floor(transaction.total_amount || 0).toLocaleString()} د.ع
+                                                                </td>
+                                                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                                                    {new Date(transaction.created_at).toLocaleString('ar-EG')}
+                                                                </td>
+                                                                <td className="px-4 py-3 text-sm text-gray-600 max-w-xs truncate">
+                                                                    {transaction.notes || '-'}
+                                                                </td>
+                                                            </tr>
+                                                        ))
+                                                    ) : (
+                                                        <tr>
+                                                            <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
+                                                                لا توجد عمليات شراء مسجلة
+                                                            </td>
+                                                        </tr>
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        {/* Pagination Controls */}
+                                        {reportTotalPages > 1 && (
+                                            <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="text-sm text-gray-700">
+                                                        صفحة <span className="font-semibold">{reportCurrentPage}</span> من{' '}
+                                                        <span className="font-semibold">{reportTotalPages}</span>
+                                                        {' '}(عرض {reportPerPage} معاملة لكل صفحة)
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => handleReportPageChange(1)}
+                                                            disabled={reportCurrentPage === 1}
+                                                            className="px-3 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                                                        >
+                                                            الأولى
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleReportPageChange(reportCurrentPage - 1)}
+                                                            disabled={reportCurrentPage === 1}
+                                                            className="px-3 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                                                        >
+                                                            السابقة
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleReportPageChange(reportCurrentPage + 1)}
+                                                            disabled={reportCurrentPage === reportTotalPages}
+                                                            className="px-3 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                                                        >
+                                                            التالية
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleReportPageChange(reportTotalPages)}
+                                                            disabled={reportCurrentPage === reportTotalPages}
+                                                            className="px-3 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                                                        >
+                                                            الأخيرة
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* زر الإغلاق */}
+                                    <div className="flex justify-center pt-4">
+                                        <button
+                                            onClick={() => setShowDetailedReport(false)}
+                                            className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white font-semibold py-3 px-8 rounded-xl transition-all duration-200 flex items-center shadow-lg"
+                                        >
+                                            <span className="mr-2">✖️</span>
+                                            إغلاق التقرير
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center py-12">
+                                    <p className="text-gray-600 text-lg">لا توجد بيانات متاحة</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </EmployeeLayout>
     );
 }
