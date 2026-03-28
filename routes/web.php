@@ -18,6 +18,7 @@ use App\Http\Controllers\ReceiveController;
 use App\Http\Controllers\ExchangeController;
 use App\Http\Controllers\TravelersController;
 use App\Http\Controllers\ThermalReceiptController;
+use App\Http\Controllers\Admin\TransactionLogController;
 use App\Http\Controllers\Employee\EmployeeCustomerController;
 use Inertia\Inertia;
 
@@ -202,13 +203,7 @@ Route::prefix('admin')->group(function () {
         return app(App\Http\Controllers\CustomerController::class)->destroy($id);
     })->name('admin.customers.delete');
 
-    Route::get('/transaction-log', function () {
-        // التحقق من تسجيل الدخول
-        if (!session('logged_in') || session('user_type') !== 'admin') {
-            return redirect()->route('login');
-        }
-        return Inertia::render('Admin/TransactionLog');
-    })->name('admin.transaction-log');
+    Route::get('/transaction-log', [TransactionLogController::class, 'index'])->name('admin.transaction-log');
 
     Route::get('/reports', function () {
         // التحقق من تسجيل الدخول
