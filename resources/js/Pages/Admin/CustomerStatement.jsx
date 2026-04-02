@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { usePage } from '@inertiajs/react';
 import html2pdf from 'html2pdf.js';
 
 export default function CustomerStatement({ customer, transactions }) {
     const { flash } = usePage().props;
+
+    const handleDeleteTransaction = (id) => {
+        if (window.confirm('هل أنت متأكد من حذف هذه المعاملة؟ سيتم التراجع عن كافة التأثيرات المالية وتحديث الرصيد.')) {
+            router.delete(route('admin.customers.transaction.delete', id));
+        }
+    };
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [filterType, setFilterType] = useState('all'); // all, received, delivered
@@ -632,6 +638,7 @@ export default function CustomerStatement({ customer, transactions }) {
                                     <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">الملاحظات</th>
                                     <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">رقم القائمة</th>
                                     <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">تاريخ الحركة</th>
+                                    <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">الإجراء</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white">
@@ -648,6 +655,7 @@ export default function CustomerStatement({ customer, transactions }) {
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">الرصيد الافتتاحي بالدينار العراقي</td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
+                                        <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
                                     </tr>
                                 )}
                                 {filterCurrency === 'usd' && (
@@ -660,6 +668,7 @@ export default function CustomerStatement({ customer, transactions }) {
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs font-bold">رصيد افتتاحي</td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">الرصيد الافتتاحي بالدولار الأمريكي</td>
+                                        <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
                                     </tr>
@@ -696,11 +705,22 @@ export default function CustomerStatement({ customer, transactions }) {
                                             <td className="border border-gray-400 px-2 py-1 text-center text-xs">
                                                 {new Date(transaction.transaction_date).toLocaleDateString('en-GB')}
                                             </td>
+                                            <td className="border border-gray-400 px-2 py-1 text-center text-xs">
+                                                <button
+                                                    onClick={() => handleDeleteTransaction(transaction.id)}
+                                                    className="p-1 text-red-600 hover:text-red-800 transition-colors"
+                                                    title="حذف القيد"
+                                                >
+                                                    <svg className="w-4 h-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                            </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="8" className="border border-gray-400 px-6 py-8 text-center text-gray-500">
+                                        <td colSpan="9" className="border border-gray-400 px-6 py-8 text-center text-gray-500">
                                             <div className="flex flex-col items-center">
                                                 <svg className="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -760,9 +780,20 @@ export default function CustomerStatement({ customer, transactions }) {
                                                     {transaction.currency_type === 'iqd' ? 'دينار' : 'دولار'}
                                                 </span>
                                             </div>
-                                            <span className="text-xs text-gray-600">
-                                                {new Date(transaction.transaction_date).toLocaleDateString('ar-EG')}
-                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs text-gray-600">
+                                                    {new Date(transaction.transaction_date).toLocaleDateString('ar-EG')}
+                                                </span>
+                                                <button
+                                                    onClick={() => handleDeleteTransaction(transaction.id)}
+                                                    className="p-1.5 text-red-600 hover:bg-red-100 rounded-full transition-colors"
+                                                    title="حذف القيد"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                            </div>
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-2 text-xs">
@@ -828,6 +859,7 @@ export default function CustomerStatement({ customer, transactions }) {
                                     <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">الملاحظات</th>
                                     <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">رقم القائمة</th>
                                     <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold">تاريخ الحركة</th>
+                                    <th className="border border-gray-400 px-2 py-2 text-center text-sm font-bold"></th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white">
@@ -843,6 +875,7 @@ export default function CustomerStatement({ customer, transactions }) {
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">الرصيد الحالي بالدينار العراقي</td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
+                                        <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
                                     </tr>
                                 )}
                                 {filterCurrency === 'usd' && (
@@ -855,6 +888,7 @@ export default function CustomerStatement({ customer, transactions }) {
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs font-bold">رصيد حالي</td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">الرصيد الحالي بالدولار الأمريكي</td>
+                                        <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
                                         <td className="border border-gray-400 px-2 py-1 text-center text-xs">-</td>
                                     </tr>

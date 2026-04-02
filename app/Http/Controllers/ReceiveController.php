@@ -232,7 +232,9 @@ class ReceiveController extends Controller
                         'exchange_rate' => $request->exchange_rate ?? 1,
                         'description' => 'سند قبض رقم: ' . $request->documentNumber . ' - ' . ($request->description ?: 'بدون وصف'),
                         'notes' => $request->notes,
-                        'transaction_date' => now()
+                        'transaction_date' => now(),
+                        'source_type' => \App\Models\ReceiveTransaction::class,
+                        'source_id' => $transaction->id,
                     ]);
 
                     // إعادة حساب رصيد العميل

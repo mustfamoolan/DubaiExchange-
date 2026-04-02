@@ -275,6 +275,66 @@ class CashBalanceService
     }
 
     /**
+     * عكس عملية قبض (نقص الرصيد)
+     */
+    public static function reverseReceiveTransaction(
+        int $userId,
+        float $amountInIQD,
+        int $transactionId,
+        string $notes = null
+    ): array {
+        $previousBalance = self::getCurrentBalance($userId);
+        $balanceChange = -$amountInIQD;
+
+        $newBalance = self::updateAfterTransaction(
+            $userId,
+            $previousBalance,
+            $balanceChange,
+            'reverse_receive',
+            'receive',
+            $transactionId,
+            $amountInIQD,
+            'تراجع عن: ' . ($notes ?? '')
+        );
+
+        return [
+            'previous_balance' => $previousBalance,
+            'new_balance' => $newBalance,
+            'balance_change' => $balanceChange
+        ];
+    }
+
+    /**
+     * عكس عملية صرف (زيادة الرصيد)
+     */
+    public static function reverseExchangeTransaction(
+        int $userId,
+        float $amount,
+        int $transactionId,
+        string $notes = null
+    ): array {
+        $previousBalance = self::getCurrentBalance($userId);
+        $balanceChange = $amount;
+
+        $newBalance = self::updateAfterTransaction(
+            $userId,
+            $previousBalance,
+            $balanceChange,
+            'reverse_exchange',
+            'exchange',
+            $transactionId,
+            $amount,
+            'تراجع عن: ' . ($notes ?? '')
+        );
+
+        return [
+            'previous_balance' => $previousBalance,
+            'new_balance' => $newBalance,
+            'balance_change' => $balanceChange
+        ];
+    }
+
+    /**
      * إضافة رصيد افتتاحي فقط إذا لم يكن موجوداً لمستخدم محدد
      * يستخدم الرصيد النقدي من OpeningBalance إذا لم يكن محدد
      */

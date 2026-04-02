@@ -5,6 +5,11 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Customer;
 use App\Models\CustomerTransaction;
+use App\Models\ReceiveTransaction;
+use App\Models\ExchangeTransaction;
+use App\Models\OpeningBalance;
+use App\Services\CashBalanceService;
+use App\Services\DollarBalanceService;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
@@ -373,6 +378,90 @@ class CustomerController extends Controller
                 'success' => false,
                 'message' => 'حدث خطأ غير متوقع: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * حذف حركة من كشف حساب العميل مع التراجع عن التأثيرات المالية
+     */
+    public function destroyTransaction($id)
+    {
+        DB::beginTransaction();
+        try {
+            $transaction = CustomerTransaction::findOrFail($id);
+            $customer = $transaction->customer;
+            $userId = $transaction->user_id;
+
+            // 1. التراجع عن التأثيرات في الخزنة (صندوق الموظف) والرصيد الافتتاحي
+            if ($transaction->source_type && $transaction->source_id) {
+                // محاولة جلب المصدر
+                $source = null;
+                if ($transaction->source_type === ReceiveTransaction::class) {
+                    $source = ReceiveTransaction::find($transaction->source_id);
+                } elseif ($transaction->source_type === ExchangeTransaction::class) {
+                    $source = ExchangeTransaction::find($transaction->source_id);
+                }
+                
+                if ($source) {
+                    if ($transaction->source_type === ReceiveTransaction::class) {
+                        // تراجع عن قبض
+                        if ($transaction->currency_type === 'iqd') {
+                            CashBalanceService::reverseReceiveTransaction($userId, $source->amount, $source->id, $source->notes);
+                            
+                            // تحديث الرصيد الافتتاحي (naqa)
+                            $opening = OpeningBalance::where('user_id', $userId)->where('status', 'active')->first();
+                            if ($opening) {
+                                $opening->naqa -= $source->amount;
+                                $opening->save();
+                            }
+                        } else {
+                            DollarBalanceService::reverseReceiveTransaction($userId, $source->amount, $source->id, $source->notes);
+                            
+                            // تحديث الرصيد الافتتاحي (usd_cash)
+                            $opening = OpeningBalance::where('user_id', $userId)->where('status', 'active')->first();
+                            if ($opening) {
+                                $opening->usd_cash -= $source->amount;
+                                $opening->save();
+                            }
+                        }
+                        $source->delete();
+                    } elseif ($transaction->source_type === ExchangeTransaction::class) {
+                        // تراجع عن صرف
+                        if ($transaction->currency_type === 'iqd') {
+                            CashBalanceService::reverseExchangeTransaction($userId, $source->amount, $source->id, $source->notes);
+                            
+                            // تحديث الرصيد الافتتاحي (naqa)
+                            $opening = OpeningBalance::where('user_id', $userId)->where('status', 'active')->first();
+                            if ($opening) {
+                                $opening->naqa += $source->amount;
+                                $opening->save();
+                            }
+                        } else {
+                            DollarBalanceService::reverseExchangeTransaction($userId, $source->amount, $source->id, $source->notes);
+                            
+                            // تحديث الرصيد الافتتاحي (usd_cash)
+                            $opening = OpeningBalance::where('user_id', $userId)->where('status', 'active')->first();
+                            if ($opening) {
+                                $opening->usd_cash += $source->amount;
+                                $opening->save();
+                            }
+                        }
+                        $source->delete();
+                    }
+                }
+            }
+
+            // 2. حذف حركة العميل
+            $transaction->delete();
+
+            // 3. تحديث رصيد العميل الحالي
+            $customer->updateBalances();
+
+            DB::commit();
+            return back()->with('success', 'تم حذف الحركة والتراجع عن كافة التأثيرات المالية بنجاح');
+        } catch (\Exception $e) {
+            DB::rollback();
+            return back()->with('error', 'حدث خطأ أثناء الحذف: ' . $e->getMessage());
         }
     }
 }

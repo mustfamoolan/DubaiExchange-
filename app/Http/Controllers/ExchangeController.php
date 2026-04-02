@@ -213,7 +213,9 @@ class ExchangeController extends Controller
                         'exchange_rate' => 1,
                         'description' => 'سند صرف رقم: ' . $request->invoiceNumber . ' - ' . ($request->description ?: 'بدون وصف'),
                         'notes' => $request->notes,
-                        'transaction_date' => now()
+                        'transaction_date' => now(),
+                        'source_type' => \App\Models\ExchangeTransaction::class,
+                        'source_id' => $transaction->id,
                     ]);
 
                     // إعادة حساب رصيد العميل

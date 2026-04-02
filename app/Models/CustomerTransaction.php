@@ -20,8 +20,18 @@ class CustomerTransaction extends Model
         'exchange_rate',
         'description',
         'notes',
-        'transaction_date'
+        'transaction_date',
+        'source_type',
+        'source_id'
     ];
+
+    /**
+     * العلاقة مع المصدر (سند قبض، سند صرف، إلخ)
+     */
+    public function source()
+    {
+        return $this->morphTo();
+    }
 
     protected $casts = [
         'amount' => 'decimal:2',

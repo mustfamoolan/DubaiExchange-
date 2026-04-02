@@ -161,4 +161,19 @@ class DollarBalanceService
 
         return $stats;
     }
+    /**
+     * عكس عملية قبض بالدولار (نقص الرصيد)
+     */
+    public static function reverseReceiveTransaction($userId, $dollarAmount, $transactionReference = null, $notes = null)
+    {
+        return self::updateBalance($userId, -$dollarAmount, 'reverse_receive', $transactionReference, 'تراجع عن: ' . ($notes ?? ''));
+    }
+
+    /**
+     * عكس عملية صرف بالدولار (زيادة الرصيد)
+     */
+    public static function reverseExchangeTransaction($userId, $dollarAmount, $transactionReference = null, $notes = null)
+    {
+        return self::updateBalance($userId, $dollarAmount, 'reverse_exchange', $transactionReference, 'تراجع عن: ' . ($notes ?? ''));
+    }
 }

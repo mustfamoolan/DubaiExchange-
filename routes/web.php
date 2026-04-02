@@ -203,6 +203,13 @@ Route::prefix('admin')->group(function () {
         return app(App\Http\Controllers\CustomerController::class)->destroy($id);
     })->name('admin.customers.delete');
 
+    Route::delete('/customer-transactions/{id}', function ($id) {
+        if (!session('logged_in') || session('user_type') !== 'admin') {
+            return redirect()->route('login');
+        }
+        return app(App\Http\Controllers\CustomerController::class)->destroyTransaction($id);
+    })->name('admin.customers.transaction.delete');
+
     Route::get('/transaction-log', [TransactionLogController::class, 'index'])->name('admin.transaction-log');
 
     Route::get('/reports', function () {
